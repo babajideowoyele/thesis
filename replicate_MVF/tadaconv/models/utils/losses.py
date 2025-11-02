@@ -29,12 +29,29 @@ class SoftTargetCrossEntropy(nn.Module):
         loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
         return loss.mean()
 
+class WeightedSoftTargetCrossEntropy(nn.Module):
+
+    def __init__(self, reduction=None):
+        """
+        Args:
+            reduction: defined for compatibility with other losses.
+        """
+        super(WeightedSoftTargetCrossEntropy, self).__init__()
+
+    def forward(self, x, target):
+        if self.weight is None:
+            self.weight = torch.ones(x.shape[-1], dtype=x.dtype, device=x.device)
+        loss = torch.sum(-target * F.log_softmax(x, dim=-1)*self.weight, dim=-1)
+        return loss.mean()
+
+
 _LOSSES = {
     "cross_entropy": nn.CrossEntropyLoss,
     "bce": nn.BCELoss,
     "bce_logit": nn.BCEWithLogitsLoss,
     "mse": nn.MSELoss,
     "soft_target": SoftTargetCrossEntropy,
+    "weighted_soft_target": SoftTargetCrossEntropy,
 }
 
 
@@ -60,6 +77,7 @@ def calculate_loss(cfg, preds, logits, labels, cur_epoch):
     """
     loss_in_parts = {}
     weight = None
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     if cfg.PRETRAIN.ENABLE:
         loss = 0
         loss_parts = cfg.PRETRAIN.LOSS.split('+')
@@ -92,6 +110,7 @@ def calculate_loss(cfg, preds, logits, labels, cur_epoch):
     else:
         # Explicitly declare reduction to mean.
         loss_fun = get_loss_func(cfg.TRAIN.LOSS_FUNC)(reduction="mean")
+
         
         # Compute the loss.
         if "supervised_mixup" in labels.keys():
@@ -104,14 +123,27 @@ def calculate_loss(cfg, preds, logits, labels, cur_epoch):
                 loss = loss_fun(preds, labels["supervised_mixup"])
         else:
             if cfg.AUGMENTATION.LABEL_SMOOTHING > 0.0:
-                labels_ = label_smoothing(cfg, labels["supervised"])
+                if "type" in labels and "severity" in labels:
+                    # MVFoul has its own label smoothing implementation.
+                    labels_ = label_smoothing(cfg, labels, device=device)
+                else:
+                    labels_ = label_smoothing(cfg, labels["supervised"], device=device)
             else:
-                labels_ = labels["supervised"]
+                if "type" in labels and "severity" in labels:
+                    labels_ = labels
+                else:
+                    labels_ = labels["supervised"]
             if isinstance(labels_, dict):
+                # TODO: Improve this terrible abomination.
                 loss = 0
                 for k, v in labels_.items():
+                    if cfg.DATA.WEIGHTED_LOSS:
+                        class_weight = cfg.cfg_dict["DATA"]["CLASS_WEIGHTS"].get(k.upper(), None)
+                        class_weight = torch.tensor(class_weight, dtype=torch.float32).to(device)
+                        loss_fun.weight = class_weight
                     loss_in_parts["loss_"+k] = loss_fun(preds[k], v)
                     loss += loss_in_parts["loss_"+k]
+                    
             else:
                 loss = loss_fun(preds, labels_)
 

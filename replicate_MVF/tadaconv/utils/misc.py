@@ -40,6 +40,14 @@ def params_count(model):
     """
     return np.sum([p.numel() for p in model.parameters()]).item()
 
+def find_dotenv_in_parents():
+    current = os.path.dirname(os.path.abspath(__file__))
+    while current != os.path.dirname(current):  # Stop at root
+        env_path = os.path.join(current, '.env')
+        if os.path.exists(env_path):
+            return env_path
+        current = os.path.dirname(current)
+    return None
 
 def gpu_mem_usage():
     """

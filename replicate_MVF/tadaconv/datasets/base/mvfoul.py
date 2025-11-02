@@ -61,7 +61,7 @@ class Mvfoul(torch.utils.data.Dataset):
     def __getitem__(self, index):
         dir_name = self.dirs[index]
         feature = self._read_videos_from_dir(os.path.join(self.data_root_dir, dir_name))
-        return feature[0], feature[1], self.labels[index]
+        return feature[0], feature[1], {'supervised': self.labels[index]}
 
     def _read_videos_from_dir(self, dir_path):
         video_files = sorted(os.listdir(dir_path))

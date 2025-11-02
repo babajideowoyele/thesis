@@ -20,8 +20,12 @@ datasets [18].
 - [x] Aggregation per view
 - [x] Classification Head
 For training:
-- [ ] Implement Augmentations
+- [x] Implement Augmentations
 - [ ] Two stages
+- [ ] Sync Weights & Biases
+- [x] Check Variables for up/download, test huggingface stuff
 
 
 - Paths to manually adapt: Data Root Dir
+
+

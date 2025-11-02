@@ -10,4 +10,5 @@ dependencies = [
     "gdown>=5.2.0",
     "infisicalsdk>=1.0.11",
     "torch>=2.9.0",
+    "torchvision>=0.24.0",
 ]

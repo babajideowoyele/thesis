@@ -19,4 +19,6 @@ dependencies = [
     "soccernet>=0.1.62",
     "torch>=2.9.0",
     "torchvision>=0.24.0",
+    "wandb>=0.22.3",
+    "weave>=0.52.14",
 ]

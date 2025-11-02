@@ -9,7 +9,6 @@ Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import datetime
 import numpy as np
-import os
 from collections import defaultdict, deque
 import torch
 from tadaconv.utils.timer import Timer
@@ -523,13 +522,15 @@ class TrainMeter(object):
     Measure training stats.
     """
 
-    def __init__(self, epoch_iters, cfg):
+    def __init__(self, epoch_iters, cfg, wandb=None):
         """
         Args:
             epoch_iters (int): the overall number of iterations of one epoch.
             cfg (Config): the global config object.
         """
         self._cfg = cfg
+        self.wandb = wandb
+        # TODO: check if syncing to w&b should be done, add down in logging part
         self.epoch_iters = epoch_iters
         self.MAX_EPOCH = cfg.OPTIMIZER.MAX_EPOCH * epoch_iters
         self.iter_timer = Timer()
@@ -641,6 +642,8 @@ class TrainMeter(object):
             stats["top1_err"] = self.mb_top1_err.get_win_median()
             stats["top5_err"] = self.mb_top5_err.get_win_median()
         logging.log_json_stats(stats)
+        if self.wandb is not None:
+            self.wandb.log(stats)
 
     def log_epoch_stats(self, cur_epoch):
         """
@@ -671,6 +674,8 @@ class TrainMeter(object):
             stats["top5_err"] = top5_err
             stats["loss"] = avg_loss
         logging.log_json_stats(stats)
+        if self.wandb is not None:
+            self.wandb.log(stats)
 
 
 class ValMeter(object):
@@ -678,13 +683,14 @@ class ValMeter(object):
     Measures validation stats.
     """
 
-    def __init__(self, max_iter, cfg):
+    def __init__(self, max_iter, cfg, wandb=None):
         """
         Args:
             max_iter (int): the max number of iteration of the current epoch.
             cfg (Config): the global config object.
         """
         self._cfg = cfg
+        self.wandb = wandb
         self.max_iter = max_iter
         self.iter_timer = Timer()
         # Current minibatch errors (smoothed over a window).

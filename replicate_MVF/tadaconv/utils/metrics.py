@@ -61,6 +61,7 @@ def joint_topks_correct(preds, labels, ks):
             idx += 1
 
         assert pred.size(0) == label.size(0), "Batch dim of predictions and labels must match"
+
         _top_max_k_vals, top_max_k_inds = torch.topk(
             pred, max(ks), dim=1, largest=True, sorted=True
         )
@@ -72,7 +73,7 @@ def joint_topks_correct(preds, labels, ks):
         top_max_k_correct = top_max_k_inds.eq(rep_max_k_labels)
         # Compute the number of topk correct predictions for each k.
         topks_correct = [
-            top_max_k_correct[:k, :].view(-1).float().sum() for k in ks
+            top_max_k_correct[:k, :].reshape(-1).float().sum() for k in ks
         ]
         topks_correct_all[k] = topks_correct
     
@@ -89,7 +90,7 @@ def joint_topks_correct(preds, labels, ks):
     top_max_k_correct = top_max_k_inds.eq(rep_max_k_labels)
     # Compute the number of topk correct predictions for each k.
     topks_correct = [
-        top_max_k_correct[:k, :].view(-1).float().sum() for k in ks
+        top_max_k_correct[:k, :].reshape(-1).float().sum() for k in ks
     ]
     topks_correct_all["joint_class"] = topks_correct
     

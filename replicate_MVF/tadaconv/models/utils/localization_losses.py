@@ -29,8 +29,8 @@ def Loss_Tem(cfg, preds, logits, labels={}, cur_epoch=0):
     label_weight = torch.ones(pred_start.shape[0], device=pred_start.device)
     def bi_loss(pred_score, gt_label, label_weight):
         label_weight = label_weight.unsqueeze(1).expand_as(pred_score).reshape(-1)
-        pred_score = pred_score.view(-1)
-        gt_label = gt_label.view(-1)
+        pred_score = pred_score.reshape(-1)
+        gt_label = gt_label.reshape(-1)
         pmask = (gt_label > 0.5).float() * label_weight
         num_entries = label_weight.sum()
         num_positive = torch.sum(pmask)
@@ -65,7 +65,7 @@ def Loss_BmnActionCls(cfg, preds, logits, labels={}, cur_epoch=0):
     noun_map = preds['noun_map'].flatten(2, 3)
     select_action = gt_iou_map >= 0.75
 
-    select_action = select_action.view(-1)
+    select_action = select_action.reshape(-1)
     gt_label = gt_label.permute(0, 2, 1).flatten(0, 1)[select_action, :]
     verb_map = verb_map.permute(0, 2, 1).flatten(0, 1)[select_action, :]
     noun_map = noun_map.permute(0, 2, 1).flatten(0, 1)[select_action, :]

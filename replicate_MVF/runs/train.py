@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
 """Train a video classification model."""
+import token
+from dotenv import load_dotenv
 import numpy as np
 import pprint
 import torch
 
 import os
 import torch.nn as nn
+import wandb
 
 import tadaconv.models.utils.losses as losses
 import tadaconv.models.utils.optimizer as optim
@@ -114,7 +117,7 @@ def train_epoch(
             if isinstance(labels["supervised"], dict):
                 top1_err_all = {}
                 top5_err_all = {}
-                num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 5))
+                num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 4))
                 for k, v in num_topks_correct.items():
                     # Compute the errors.
                     top1_err_split, top5_err_split = [
@@ -176,7 +179,7 @@ def train_epoch(
                 top5_err,
                 loss,
                 lr,
-                inputs["video"][0].size(0)
+                inputs[0].size(0)
                 * max(
                     misc.get_num_gpus(cfg), 1
                 ),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
@@ -207,15 +210,14 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
     model.eval()
     val_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, _, meta) in enumerate(val_loader):
+    for cur_iter, (inputs, mask, labels) in enumerate(val_loader):
         if misc.get_num_gpus(cfg):
             # Transferthe data to the current GPU device.
             if not cfg.AUGMENTATION.USE_GPU:
                 inputs = tu.tensor2cuda(inputs)
             labels = tu.tensor2cuda(labels)
-            meta = tu.tensor2cuda(meta)
 
-        preds, logits = model(inputs)
+        preds, logits = model(inputs, mask)
         if cfg.PRETRAIN.ENABLE and (cfg.PRETRAIN.GENERATOR == 'MoSIGenerator'):
             if "move_x" in preds.keys():
                 preds["move_joint"] = preds["move_x"]
@@ -252,7 +254,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
             if isinstance(labels["supervised"], dict):
                 top1_err_all = {}
                 top5_err_all = {}
-                num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 5))
+                num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 4))
                 for k, v in num_topks_correct.items():
                     # Compute the errors.
                     top1_err_split, top5_err_split = [
@@ -352,13 +354,29 @@ def train(cfg):
     # Load a checkpoint to resume training if applicable.
     start_epoch = cu.load_train_checkpoint(cfg, model, model_ema, optimizer, model_bucket)
 
+    if cfg.WANDB.SYNC_ENABLE:
+        env_path = misc.find_dotenv_in_parents()
+        load_dotenv(env_path)
+        wandb.login(key=os.getenv("WANDB"))
+        wandb_run = wandb.init(
+            # Set the wandb entity where your project will be logged (generally your team name).
+            entity=cfg.WANDB.ENTITY_NAME,
+            # Set the wandb project where this run will be logged.
+            project=cfg.WANDB.PROJECT_NAME,
+            # Track hyperparameters and run metadata.
+            config=cfg.cfg_dict,
+        )
+    else:
+        wandb_run = None
+
+
     # Create the video train and val loaders.
     train_loader = build_loader(cfg, "train")
     val_loader = build_loader(cfg, "val") if cfg.TRAIN.EVAL_PERIOD != 0 else None
 
     # Create meters.
-    train_meter = TrainMeter(len(train_loader), cfg)
-    val_meter = ValMeter(len(val_loader), cfg) if val_loader is not None else None
+    train_meter = TrainMeter(len(train_loader), cfg, wandb=wandb_run)
+    val_meter = ValMeter(len(val_loader), cfg, wandb=wandb_run) if val_loader is not None else None
 
     if cfg.AUGMENTATION.MIXUP.ENABLE or cfg.AUGMENTATION.CUTMIX.ENABLE:
         logger.info("Enabling mixup/cutmix.")

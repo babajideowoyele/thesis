@@ -28,15 +28,15 @@ def label_smoothing_target(target, num_classes, smoothing=0.0, device='cuda'):
     y1 = one_hot(target, num_classes, on_value=on_value, off_value=off_value, device=device)
     return y1
 
-def label_smoothing(cfg, target):
+def label_smoothing(cfg, target, device='cuda'):
     if isinstance(target, dict):
         idx = 0
         target_ = {}
         for k, v in target.items():
-            target_[k] = label_smoothing_target(v, cfg.VIDEO.HEAD.NUM_CLASSES[idx], cfg.AUGMENTATION.LABEL_SMOOTHING)
+            target_[k] = label_smoothing_target(v, cfg.VIDEO.HEAD.NUM_CLASSES[idx], cfg.AUGMENTATION.LABEL_SMOOTHING, device=device)
             idx+= 1
     else:
-        target_ = label_smoothing_target(target, cfg.VIDEO.HEAD.NUM_CLASSES, cfg.AUGMENTATION.LABEL_SMOOTHING)
+        target_ = label_smoothing_target(target, cfg.VIDEO.HEAD.NUM_CLASSES, cfg.AUGMENTATION.LABEL_SMOOTHING, device=device)
     return target_
 
 

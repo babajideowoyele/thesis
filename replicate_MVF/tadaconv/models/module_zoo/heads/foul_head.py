@@ -80,4 +80,5 @@ class FOULHead(BaseHeadx2):
         
         out1 = out1.view(out1.shape[0], -1)
         out2 = out2.view(out2.shape[0], -1)
-        return {"severity": out1, "type": out2}, out.view(x.shape[0], -1)
+
+        return {"type": out1, "severity": out2}, out.view(x.shape[0], -1)

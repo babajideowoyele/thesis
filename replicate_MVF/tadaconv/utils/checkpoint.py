@@ -20,6 +20,7 @@ from collections import OrderedDict
 
 import tadaconv.utils.bucket as bu
 import tadaconv.utils.distributed as du
+from tadaconv.utils.huggingface_sync import download_checkpoint_from_huggingface, hf_ckpt_available, upload_checkpoint_to_huggingface
 import tadaconv.utils.logging as logging
 
 from torch.hub import tqdm, load_state_dict_from_url as load_url
@@ -168,6 +169,8 @@ def save_checkpoint(path_to_job, model, model_ema, optimizer, epoch, cfg, model_
     path_to_checkpoint = get_path_to_checkpoint(path_to_job, epoch + 1)
     with open(path_to_checkpoint, "wb") as f:
         torch.save(checkpoint, f)
+    if cfg.HUGGINGFACE.SAVE and cfg.HUGGINGFACE.REPO is not None and cfg.HUGGINGFACE.REPO != "":
+        upload_checkpoint_to_huggingface(cfg, path_to_checkpoint)
 
     # Upload checkpoints
     if model_bucket is not None and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
@@ -532,7 +535,9 @@ def load_train_checkpoint(cfg, model, model_ema, optimizer, model_bucket=None):
     """
     Loading checkpoint logic for training.
     """
+
     read_from_oss = False
+
     if cfg.TRAIN.AUTO_RESUME and has_checkpoint(cfg.OUTPUT_DIR):
         last_checkpoint = get_last_checkpoint(cfg.OUTPUT_DIR)
         logger.info("Load from last checkpoint, {}.".format(last_checkpoint))
@@ -541,6 +546,23 @@ def load_train_checkpoint(cfg, model, model_ema, optimizer, model_bucket=None):
             pre_process=cfg.TRAIN.CHECKPOINT_PRE_PROCESS.ENABLE
         )
         start_epoch = checkpoint_epoch + 1
+    elif cfg.HUGGINGFACE.LOAD and (hf_identifier := hf_ckpt_available(cfg)) is not None:
+        logger.info(f"Load checkpoint from huggingface hub: {hf_identifier}")
+        checkpoint_path = download_checkpoint_from_huggingface(
+            cfg,
+            hf_identifier,
+            cfg.HUGGINGFACE.CACHE_DIR
+        )
+        checkpoint_epoch = load_checkpoint(
+            cfg,
+            checkpoint_path,
+            model,
+            model_ema,
+            cfg.NUM_GPUS*cfg.NUM_SHARDS > 1,
+            optimizer=None if cfg.TRAIN.FINE_TUNE else optimizer,
+            pre_process=cfg.TRAIN.CHECKPOINT_PRE_PROCESS.ENABLE
+        )
+        start_epoch = 0 if cfg.TRAIN.FINE_TUNE else (checkpoint_epoch + 1)
     elif cfg.TRAIN.CHECKPOINT_FILE_PATH != "" and cfg.TRAIN.CHECKPOINT_FILE_PATH is not None:
         _checkpoint_file_path = cfg.TRAIN.CHECKPOINT_FILE_PATH
         if _checkpoint_file_path.split(':')[0] == 'oss':
@@ -556,7 +578,7 @@ def load_train_checkpoint(cfg, model, model_ema, optimizer, model_bucket=None):
             )
         else:
             checkpoint_path = cfg.TRAIN.CHECKPOINT_FILE_PATH
-        logger.info("Load from given checkpoint file.\nCheckpoint file path: {}".format(_checkpoint_file_path))
+        logger.info("Load from given checkpoint file.\nCheckpoint file path: {}".format(checkpoint_path))
         checkpoint_epoch = load_checkpoint(
             cfg,
             checkpoint_path,

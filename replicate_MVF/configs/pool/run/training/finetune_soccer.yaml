@@ -7,9 +7,9 @@ TRAIN:
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
   EVAL_PERIOD: 5
-  NUM_FOLDS: 30
-  AUTO_RESUME: true
-  CHECKPOINT_PERIOD: 10
+  NUM_FOLDS: 12
+  AUTO_RESUME: false
+  CHECKPOINT_PERIOD: 8
   CHECKPOINT_FILE_PATH: "/Volumes/KG1TB/Developement/thesis/l14_clip_k710.pyth"    # !!@2
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
@@ -23,7 +23,7 @@ TEST:
   SPATIAL_CROPS: cc
   NUM_ENSEMBLE_VIEWS: 1
   LOG_FILE: val.log
-  CHECKPOINT_FILE_PATH: ""
+  CHECKPOINT_FILE_PATH: "/Volumes/KG1TB/Developement/thesis/l14_clip_k710.pyth"
   CHECKPOINT_TYPE: pytorch
   AUTOMATIC_MULTI_SCALE_TEST: true
 DATA:
@@ -55,6 +55,7 @@ OPTIMIZER:
   DAMPENING: 0.0
   NESTEROV: true
 BN:
+  FREEZE: false
   WEIGHT_DECAY: 0.0
   EPS: 1e-3
 DATA_LOADER:
@@ -65,7 +66,13 @@ NUM_GPUS: 0
 SHARD_ID: 0
 NUM_SHARDS: 1
 RANDOM_SEED: 0
-OUTPUT_DIR: 
+OUTPUT_DIR: "/Volumes/KG1TB/Developement/thesis/replicate_MVF/ckpts"
+HUGGINGFACE:
+  LOAD: true
+  REPO: "KGolden/mvf_checkpoints"
+  SAVE: true
+  CACHE_DIR: "./hf_cache"
+  FILE_NAME: "backbone_finetuned"
 OUTPUT_CFG_FILE: configuration.log
 LOG_PERIOD: 10
 DIST_BACKEND: nccl
@@ -84,4 +91,8 @@ AUGMENTATION:
   RATIO: [0.857142857142857, 1.1666666666666667]
   USE_GPU: false
 PAI: false
+WANDB:
+  SYNC_ENABLE: true
+  ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
+  PROJECT_NAME: "Thesis-Goldenbaum"
 
