@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "debugpy>=1.8.17",
     "dotenv>=0.9.9",
     "einops>=0.8.1",
     "eva-decord>=0.6.1",

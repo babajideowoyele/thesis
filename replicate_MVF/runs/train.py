@@ -70,10 +70,12 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
+    torch.cuda.memory_summary()
+
     for cur_iter, (inputs, masks, labels) in enumerate(train_loader):
         # Transfer the data to the current GPU device.        
         if misc.get_num_gpus(cfg):
-            if not cfg.AUGMENTATION.USE_GPU:
+            if cfg.AUGMENTATION.USE_GPU:
                 inputs = tu.tensor2cuda(inputs)
             labels = tu.tensor2cuda(labels)
 
@@ -396,7 +398,7 @@ def train(cfg):
     assert (cfg.OPTIMIZER.MAX_EPOCH-start_epoch)%cfg.TRAIN.NUM_FOLDS == 0, "Total training epochs should be divisible by cfg.TRAIN.NUM_FOLDS."
 
     for cur_epoch in range(start_epoch, cfg.OPTIMIZER.MAX_EPOCH, cfg.TRAIN.NUM_FOLDS):
-
+        torch.cuda.memory_summary()
         # Shuffle the dataset.
         shuffle_dataset(train_loader, cur_epoch)
         # Train for one epoch.
