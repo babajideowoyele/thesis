@@ -14,7 +14,7 @@ TRAIN:
 TEST:
   ENABLE: true
   DATASET: MVFoul
-  BATCH_SIZE: 8
+  BATCH_SIZE: 4
 DATA:
   DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
   ANNO_DIR:

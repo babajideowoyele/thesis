@@ -6,10 +6,10 @@ TRAIN:
   BATCH_SIZE: 4
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
-  EVAL_PERIOD: 5
+  EVAL_PERIOD: 4
   NUM_FOLDS: 12
   AUTO_RESUME: false
-  CHECKPOINT_PERIOD: 8
+  CHECKPOINT_PERIOD: 2
   CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"    # !!@2
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
