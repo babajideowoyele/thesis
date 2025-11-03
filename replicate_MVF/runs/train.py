@@ -212,20 +212,20 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
     model.eval()
     val_meter.iter_tic()
 
-    for cur_iter, (inputs, mask, labels) in enumerate(val_loader):
+    for cur_iter, (inputs, masks, labels) in enumerate(val_loader):
         if misc.get_num_gpus(cfg):
             # Transferthe data to the current GPU device.
-            if not cfg.AUGMENTATION.USE_GPU:
+            if cfg.AUGMENTATION.USE_GPU:
                 inputs = tu.tensor2cuda(inputs)
             labels = tu.tensor2cuda(labels)
 
-        preds, logits = model(inputs, mask)
+        preds, logits = model(inputs, masks)
         if cfg.PRETRAIN.ENABLE and (cfg.PRETRAIN.GENERATOR == 'MoSIGenerator'):
             if "move_x" in preds.keys():
                 preds["move_joint"] = preds["move_x"]
             elif "move_y" in preds.keys():
                 preds["move_joint"] = preds["move_y"]
-            num_topks_correct = metrics.topks_correct(preds["move_joint"], labels["self-supervised"]["move_joint"].reshape(preds["move_joint"].shape[0]), (1, 5))
+            num_topks_correct = metrics.topks_correct(preds["move_joint"], labels["self-supervised"]["move_joint"].reshape(preds["move_joint"].shape[0]), (1, 4))
             top1_err, top5_err = [
                 (1.0 - x / preds["move_joint"].shape[0]) * 100.0 for x in num_topks_correct
             ]
@@ -284,7 +284,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
                 val_meter.update_custom_stats(top5_err_all)
             else:
                 # Compute the errors.
-                num_topks_correct = metrics.topks_correct(preds, labels["supervised"], (1, 5))
+                num_topks_correct = metrics.topks_correct(preds, labels["supervised"], (1, 4))
 
                 # Combine the errors across the GPUs.
                 top1_err, top5_err = [
@@ -301,7 +301,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
             val_meter.update_stats(
                 top1_err,
                 top5_err,
-                inputs["video"][0].size(0)
+                inputs[0].size(0)
                 * max(
                     misc.get_num_gpus(cfg), 1
                 ),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.

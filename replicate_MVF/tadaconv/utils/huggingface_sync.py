@@ -13,7 +13,7 @@ if env_path:
 def upload_checkpoint_to_huggingface(cfg, checkpoint_path):
     repo_id = cfg.HUGGINGFACE.REPO
     try:
-        hf_api = HfApi(token=os.getenv("HUGGINGFACE_HUB_TOKEN"))
+        hf_api = HfApi(token=os.getenv("HuggingFace"))
         hf_api.create_repo(repo_id=repo_id, exist_ok=True)
         files_in_repo = hf_api.list_repo_files(repo_id)
     except Exception as e:
@@ -27,18 +27,18 @@ def upload_checkpoint_to_huggingface(cfg, checkpoint_path):
         path_or_fileobj=checkpoint_path,
         path_in_repo=repo_file_name,
         repo_id=repo_id,
-        token=os.getenv("HUGGINGFACE_HUB_TOKEN"),
+        token=os.getenv("HuggingFace"),
     )
 
 def download_checkpoint_from_huggingface(cfg, hf_identifier, checkpoint_path):
     repo_id = cfg.HUGGINGFACE.REPO
-    return hf_hub_download(repo_id=repo_id, filename=hf_identifier, cache_dir=checkpoint_path, token=os.getenv("HUGGINGFACE_HUB_TOKEN"))
+    return hf_hub_download(repo_id=repo_id, filename=hf_identifier, cache_dir=checkpoint_path, token=os.getenv("HuggingFace"))
 
 
 def hf_ckpt_available(cfg):
     repo_id = cfg.HUGGINGFACE.REPO
     try:
-        hf_api = HfApi(token=os.getenv("HUGGINGFACE_HUB_TOKEN"))
+        hf_api = HfApi(token=os.getenv("HuggingFace"))
         hf_api.create_repo(repo_id=repo_id, exist_ok=True)
         files_in_repo = hf_api.list_repo_files(repo_id)
     except Exception as e:
