@@ -10,7 +10,7 @@ TRAIN:
   FINE_TUNE: true
   LR_REDUCE: true
   INIT: clip
-  CHECKPOINT_FILE_PATH: "/Volumes/KG1TB/Developement/thesis/l14_clip_k710.pyth"
+  CHECKPOINT_FILE_PATH: "/Volumes/KG1TB/Devepupement/thesis/l14_clip_k710.pyth"
 TEST:
   ENABLE: true
   DATASET: MVFoul
