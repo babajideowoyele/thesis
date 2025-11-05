@@ -75,9 +75,10 @@ def train_epoch(
     for cur_iter, (inputs, masks, labels) in enumerate(train_loader):
         # Transfer the data to the current GPU device.        
         if misc.get_num_gpus(cfg):
-            if cfg.AUGMENTATION.USE_GPU:
+            if cfg.NUM_GPUS > 0 or cfg.AUGMENTATION.USE_GPU:
                 inputs = tu.tensor2cuda(inputs)
-            labels = tu.tensor2cuda(labels)
+                labels = tu.tensor2cuda(labels)
+                masks = tu.tensor2cuda(masks)
 
         # perform mixup on the input
         if mixup_fn is not None:

@@ -1,5 +1,5 @@
-_BASE_RUN: ../../pool/run/training/finetune_soccer.yaml
-_BASE_MODEL: ../../pool/backbone/tadaformer_l14_soccer.yaml
+_BASE_RUN: ../../pool/run/training/finetune_soccer_head.yaml
+_BASE_MODEL: ../../pool/backbone/tadaformer_l14_soccer_head.yaml
 
 PRETRAIN:
   ENABLE: false
@@ -10,7 +10,7 @@ TRAIN:
   FINE_TUNE: true
   LR_REDUCE: true
   INIT: clip
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/l14_clip_k710.pyth"
+  CHECKPOINT_FILE_PATH: 
 TEST:
   ENABLE: true
   DATASET: MVFoul
