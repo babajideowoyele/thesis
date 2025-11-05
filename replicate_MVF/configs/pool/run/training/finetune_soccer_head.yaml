@@ -3,14 +3,14 @@ PRETRAIN:
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 2
+  BATCH_SIZE: 4
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
   EVAL_PERIOD: 5
   NUM_FOLDS: 12
   AUTO_RESUME: false
-  CHECKPOINT_PERIOD: 8
-  CHECKPOINT_FILE_PATH: "/Volumes/KG1TB/Developement/thesis/l14_clip_k710.pyth"    # !!@2
+  CHECKPOINT_PERIOD: 4
+  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/l14_clip_k710.pyth"    # !!@2
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
@@ -23,11 +23,11 @@ TEST:
   SPATIAL_CROPS: cc
   NUM_ENSEMBLE_VIEWS: 1
   LOG_FILE: val.log
-  CHECKPOINT_FILE_PATH: "/Volumes/KG1TB/Developement/thesis/l14_clip_k710.pyth"
+  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/l14_clip_k710.pyth"
   CHECKPOINT_TYPE: pytorch
   AUTOMATIC_MULTI_SCALE_TEST: true
 DATA:
-  DATA_ROOT_DIR: 
+  DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
   ANNO_DIR: 
   NUM_INPUT_FRAMES: 16
   NUM_INPUT_CHANNELS: 1
@@ -66,7 +66,7 @@ NUM_GPUS: 1
 SHARD_ID: 0
 NUM_SHARDS: 1
 RANDOM_SEED: 0
-OUTPUT_DIR: "/Volumes/KG1TB/Developement/thesis/replicate_MVF/ckpts"
+OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts"
 HUGGINGFACE:
   LOAD: true
   REPO: "KGolden/mvf_checkpoints"
@@ -74,7 +74,7 @@ HUGGINGFACE:
   CACHE_DIR: "./hf_cache"
   FILE_NAME: "head_finetuned"
 OUTPUT_CFG_FILE: configuration.log
-LOG_PERIOD: 10
+LOG_PERIOD: 4
 DIST_BACKEND: nccl
 LOG_MODEL_INFO: true
 LOG_CONFIG_INFO: true

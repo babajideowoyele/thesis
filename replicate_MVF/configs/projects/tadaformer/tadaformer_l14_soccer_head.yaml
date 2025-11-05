@@ -6,17 +6,17 @@ PRETRAIN:
 TRAIN:
   ENABLE: true
   DATASET: Mvfoul
-  BATCH_SIZE: 2
+  BATCH_SIZE: 4
   FINE_TUNE: true
   LR_REDUCE: true
   INIT: clip
-  CHECKPOINT_FILE_PATH: "/Volumes/KG1TB/Devepupement/thesis/l14_clip_k710.pyth"
+  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/l14_clip_k710.pyth"
 TEST:
   ENABLE: true
   DATASET: MVFoul
   BATCH_SIZE: 8
 DATA:
-  DATA_ROOT_DIR: /Volumes/KG1TB/data/SoccerData/mvfouls
+  DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
   ANNO_DIR:
   WEIGHTED_LOSS: false
   CLASS_WEIGHTS:
@@ -76,7 +76,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 0
+NUM_GPUS: 1
 DATA_LOADER:
   NUM_WORKERS: 1
   PIN_MEMORY: false
