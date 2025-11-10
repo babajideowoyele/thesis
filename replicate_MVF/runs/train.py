@@ -74,9 +74,10 @@ def train_epoch(
     for cur_iter, (inputs, masks, labels) in enumerate(train_loader):
         # Transfer the data to the current GPU device.        
         if misc.get_num_gpus(cfg):
-            if cfg.AUGMENTATION.USE_GPU:
+            if cfg.NUM_GPUS > 0 or cfg.AUGMENTATION.USE_GPU:
                 inputs = tu.tensor2cuda(inputs)
-            labels = tu.tensor2cuda(labels)
+                labels = tu.tensor2cuda(labels)
+                masks = tu.tensor2cuda(masks)
 
         # perform mixup on the input
         if mixup_fn is not None:
@@ -214,10 +215,9 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
 
     for cur_iter, (inputs, masks, labels) in enumerate(val_loader):
         if misc.get_num_gpus(cfg):
-            # Transferthe data to the current GPU device.
-            if cfg.AUGMENTATION.USE_GPU:
-                inputs = tu.tensor2cuda(inputs)
+            inputs = tu.tensor2cuda(inputs)
             labels = tu.tensor2cuda(labels)
+            masks = tu.tensor2cuda(masks)
 
         preds, logits = model(inputs, masks)
         if cfg.PRETRAIN.ENABLE and (cfg.PRETRAIN.GENERATOR == 'MoSIGenerator'):

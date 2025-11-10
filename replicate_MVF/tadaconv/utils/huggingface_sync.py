@@ -1,10 +1,11 @@
+import logging
 from dotenv import load_dotenv
 import os
 from huggingface_hub import HfApi, upload_file, hf_hub_download
 from datetime import datetime
 from tadaconv.utils.misc import find_dotenv_in_parents
 
-
+logging.basicConfig(level=logging.INFO)
 
 env_path = find_dotenv_in_parents()
 if env_path:
@@ -20,7 +21,7 @@ def upload_checkpoint_to_huggingface(cfg, checkpoint_path):
         print(f"Error checking files: {e}")
         return None
     date_time_str = datetime.now().strftime("%d-%m-%H%M")
-    repo_file_name = cfg.HUGGINGFACE.FILE_NAME + date_time_str + ".pyth"
+    repo_file_name = cfg.HUGGINGFACE.SAVE_NAME + date_time_str + ".pyth"
     assert repo_file_name not in files_in_repo, f"File {repo_file_name} already exists in repo {repo_id}"
 
     upload_file(
@@ -44,7 +45,7 @@ def hf_ckpt_available(cfg):
     except Exception as e:
         print(f"Error checking files: {e}")
         return None
-    ckpts = [f for f in files_in_repo if cfg.HUGGINGFACE.FILE_NAME in f]
+    ckpts = [f for f in files_in_repo if cfg.HUGGINGFACE.LOAD_NAME in f]
     if len(ckpts) == 0:
         return None
     ckpt = sorted(ckpts, reverse=True)[0]

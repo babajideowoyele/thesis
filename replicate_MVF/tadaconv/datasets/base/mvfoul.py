@@ -76,13 +76,14 @@ class Mvfoul(torch.utils.data.Dataset):
         if actual_views < self.cfg.DATA.NUM_VIEWS:
             # pad with empty tensors
             num_missing = self.cfg.DATA.NUM_VIEWS - actual_views
-            C, T, H, W = video_tensors[0].shape
+            shape = video_tensors[0].shape
             for _ in range(num_missing):
-                video_tensors.append(torch.zeros((C, T, H, W)))
+                video_tensors.append(torch.zeros(shape))
         video_tensor = torch.cat(video_tensors, dim=0)  #(num_views, C, T, H, W)
 
-        mask = torch.arange(self.cfg.DATA.NUM_VIEWS)
-        mask[actual_views:] = -1
+        mask = torch.full((self.cfg.DATA.NUM_VIEWS,), 2, dtype=torch.long)
+        mask[0] = 1
+        mask[actual_views:] = 0
 
         return video_tensor, mask
     
