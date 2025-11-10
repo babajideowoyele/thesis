@@ -37,7 +37,7 @@ VIDEO:
     DROPOUT_RATE: 0
 
 OPTIMIZER:
-  BASE_LR: 2e-5
+  BASE_LR: 2e-4
   ADJUST_LR: false
   LR_POLICY: cosine_v2
   COSINE_END_LR: 1e-6

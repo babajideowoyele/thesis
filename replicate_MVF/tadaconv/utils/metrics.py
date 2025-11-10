@@ -103,7 +103,7 @@ def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Te
         preds (array): array of predictions. Dimension is N x ClassNum.
         labels (array): array of labels. Dimension is N.
     """
-    balanced_acc = {"joint": 0.0}
+    balanced_acc = {"balanced_acc_joint": 0.0}
     for key, prediction in preds.items():
         per_class_acc = []
         num_classes = ks[key]
@@ -117,9 +117,9 @@ def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Te
             class_acc = class_correct.float() / class_mask.sum().float()
             per_class_acc.append(class_acc)
         balanced_acc[key] = (torch.stack(per_class_acc).mean() * 100.0).item()
-        balanced_acc["joint"] += balanced_acc[key]
-    balanced_acc["joint"] = balanced_acc["joint"] / len(ks)
-    return {'balanced_acc': balanced_acc}
+        balanced_acc["balanced_acc_joint"] += balanced_acc[key]
+    balanced_acc["balanced_acc_joint"] = balanced_acc["balanced_acc_joint"] / len(ks)
+    return balanced_acc
     
 
 def topks_correct(preds, labels, ks):

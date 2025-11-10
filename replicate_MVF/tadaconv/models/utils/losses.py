@@ -29,21 +29,26 @@ class SoftTargetCrossEntropy(nn.Module):
         loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
         return loss.mean()
 
-class WeightedSoftTargetCrossEntropy(nn.Module):
+class BalancedSoftTargetCrossEntropy(nn.Module):
 
     def __init__(self, reduction=None):
         """
         Args:
             reduction: defined for compatibility with other losses.
         """
-        super(WeightedSoftTargetCrossEntropy, self).__init__()
+        super(BalancedSoftTargetCrossEntropy, self).__init__()
 
     def forward(self, x, target):
-        if self.weight is None:
-            self.weight = torch.ones(x.shape[-1], dtype=x.dtype, device=x.device)
-        loss = torch.sum(-target * F.log_softmax(x, dim=-1)*self.weight, dim=-1)
-        return loss.mean()
-
+        loss = torch.zeros((1,), device=x.device)
+        for c in range(x.shape[1]):
+            class_mask = torch.argmax(target, dim=-1) == c
+            class_count = class_mask.sum().item()
+            if class_count > 0:
+                class_target = target[class_mask]
+                class_pred = x[class_mask]
+                class_loss = torch.sum(-class_target * F.log_softmax(class_pred, dim=-1), dim=-1)
+                loss += class_loss.mean() / class_count
+        return loss
 
 _LOSSES = {
     "cross_entropy": nn.CrossEntropyLoss,
@@ -51,7 +56,7 @@ _LOSSES = {
     "bce_logit": nn.BCEWithLogitsLoss,
     "mse": nn.MSELoss,
     "soft_target": SoftTargetCrossEntropy,
-    "weighted_soft_target": SoftTargetCrossEntropy,
+    "balanced_soft_target": BalancedSoftTargetCrossEntropy,
 }
 
 

@@ -5,7 +5,7 @@ TRAIN:
   DATASET: MVFoul                    # !!@1
   BATCH_SIZE: 4
   LOG_FILE: training_log.log
-  LOSS_FUNC: cross_entropy
+  LOSS_FUNC: balanced_soft_target
   EVAL_PERIOD: 5
   NUM_FOLDS: 12
   AUTO_RESUME: false

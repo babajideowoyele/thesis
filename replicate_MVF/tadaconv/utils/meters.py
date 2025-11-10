@@ -601,6 +601,7 @@ class TrainMeter(object):
             # Aggregate stats
             self.num_top1_mis += top1_err * mb_size
             self.num_top5_mis += top5_err * mb_size
+            
     def update_custom_stats(self, stats):
         """
         Update stats using custom keys.
