@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 """Train a video classification model."""
-import token
 from dotenv import load_dotenv
 import numpy as np
 import pprint
@@ -120,6 +119,7 @@ def train_epoch(
                 top1_err_all = {}
                 top5_err_all = {}
                 num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 4))
+                balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
                 for k, v in num_topks_correct.items():
                     # Compute the errors.
                     top1_err_split, top5_err_split = [
