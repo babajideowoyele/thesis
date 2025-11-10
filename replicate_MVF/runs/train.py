@@ -152,6 +152,7 @@ def train_epoch(
                     loss = loss.item()
                     for k, v in loss_in_parts.items():
                         loss_in_parts[k] = v.item()
+                train_meter.update_custom_stats(balanced_acc)
                 train_meter.update_custom_stats(loss_in_parts)
                 train_meter.update_custom_stats(top1_err_all)
                 train_meter.update_custom_stats(top5_err_all)
@@ -215,9 +216,10 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
 
     for cur_iter, (inputs, masks, labels) in enumerate(val_loader):
         if misc.get_num_gpus(cfg):
-            inputs = tu.tensor2cuda(inputs)
-            labels = tu.tensor2cuda(labels)
-            masks = tu.tensor2cuda(masks)
+            if cfg.NUM_GPUS > 0 or cfg.AUGMENTATION.USE_GPU:
+                inputs = tu.tensor2cuda(inputs)
+                labels = tu.tensor2cuda(labels)
+                masks = tu.tensor2cuda(masks)
 
         preds, logits = model(inputs, masks)
         if cfg.PRETRAIN.ENABLE and (cfg.PRETRAIN.GENERATOR == 'MoSIGenerator'):
@@ -257,6 +259,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
                 top1_err_all = {}
                 top5_err_all = {}
                 num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 4))
+                balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
                 for k, v in num_topks_correct.items():
                     # Compute the errors.
                     top1_err_split, top5_err_split = [
@@ -280,6 +283,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
                     else:
                         top1_err = top1_err_split
                         top5_err = top5_err_split
+                val_meter.update_custom_stats(balanced_acc)
                 val_meter.update_custom_stats(top1_err_all)
                 val_meter.update_custom_stats(top5_err_all)
             else:
