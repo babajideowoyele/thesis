@@ -320,14 +320,15 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
     val_meter.log_epoch_stats(cur_epoch)
     val_meter.reset()
 
-def train(cfg):
+def train(cfg, world_size=1):
     """
     Train a video model for many epochs on train set and evaluate it on val set.
     Args:
         cfg (Config): The global config object.
     """
     # Set up environment.
-    du.init_distributed_training(cfg)
+    if world_size > 1:
+        du.ddp_setup(torch.distributed.get_rank(), world_size)
     # Set random seed from configs.
     np.random.seed(cfg.RANDOM_SEED)
     torch.manual_seed(cfg.RANDOM_SEED)

@@ -9,6 +9,7 @@ Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import functools
 import logging
+import os
 import pickle
 import torch
 import torch.distributed as dist
@@ -93,6 +94,12 @@ def init_process_group(
         world_size=world_size,
         rank=proc_rank,
     )
+
+def destroy_process_group():
+    """
+    Destroys the default process group.
+    """
+    dist.destroy_process_group()
 
 
 def is_master_proc(num_gpus=8):
@@ -288,6 +295,16 @@ def get_local_size() -> int:
     if not dist.is_initialized():
         return 1
     return dist.get_world_size(group=_LOCAL_PROCESS_GROUP)
+
+def ddp_setup(rank: int, world_size: int):
+   """
+   Args:
+       rank: Unique identifier of each process
+      world_size: Total number of processes
+   """
+   torch.cuda.set_device(rank)
+   torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size,
+                                        init_method="file://" + os.path.abspath("sharedfile"))
 
 
 def get_local_rank() -> int:
