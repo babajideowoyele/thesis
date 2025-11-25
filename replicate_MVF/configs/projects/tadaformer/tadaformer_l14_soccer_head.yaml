@@ -19,9 +19,6 @@ DATA:
   DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
   ANNO_DIR:
   WEIGHTED_LOSS: false
-  CLASS_WEIGHTS:
-    TYPE: [0.121, 0.23, 0.15, 0.1, 0.05, 0.08, 0.07, 0.09, 0.1]
-    SEVERITY: [0.1, 0.2, 0.3, 0.4]
   SAMPLING_MODE: segment_based
   NUM_INPUT_FRAMES: 16
   NUM_VIEWS: 4
@@ -76,7 +73,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 1
+NUM_GPUS: 2
 DATA_LOADER:
   NUM_WORKERS: 1
   PIN_MEMORY: false

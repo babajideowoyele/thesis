@@ -141,7 +141,20 @@ class Mvfoul(torch.utils.data.Dataset):
             interval,
             height,
             width):
-        indices = torch.linspace(0, vid_length - 1, steps=num_frames).long()
+        if self.cfg.DATA.CENTER_FRAME > vid_length:
+            center_frame = vid_length // 2
+        else:
+            center_frame = self.cfg.DATA.CENTER_FRAME
+        
+        if center_frame + self.cfg.DATA.SAMPLING_RATE * (num_frames // 2) > vid_length:
+            final_frame = vid_length - 1
+        else:
+            final_frame = center_frame + self.cfg.DATA.SAMPLING_RATE * (num_frames // 2) 
+        if center_frame - self.cfg.DATA.SAMPLING_RATE * (num_frames // 2) < 0:
+            start_frame = 0
+        else:
+            start_frame = center_frame - self.cfg.DATA.SAMPLING_RATE * (num_frames // 2)
+        indices = torch.linspace(start_frame, final_frame, steps=num_frames).long()
         return indices
     
     def _process_labels(self, annotations):

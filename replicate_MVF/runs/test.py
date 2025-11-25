@@ -39,7 +39,6 @@ def perform_test(test_loader, model, test_meter, cfg):
     # Enable eval mode.
     model.eval()
     test_meter.iter_tic()
-    res_dic = {}
     for cur_iter, (inputs, labels, video_idx, meta) in enumerate(test_loader):
         if misc.get_num_gpus(cfg):
             # Transfer the data to the current GPU device.
