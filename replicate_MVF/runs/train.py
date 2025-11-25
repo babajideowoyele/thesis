@@ -320,7 +320,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
     val_meter.log_epoch_stats(cur_epoch)
     val_meter.reset()
 
-def train(cfg, world_size=1):
+def train(rank, cfg, world_size=1):
     """
     Train a video model for many epochs on train set and evaluate it on val set.
     Args:
@@ -328,7 +328,7 @@ def train(cfg, world_size=1):
     """
     # Set up environment.
     if world_size > 1:
-        du.ddp_setup(torch.distributed.get_rank(), world_size)
+        du.ddp_setup(rank, world_size)
     # Set random seed from configs.
     np.random.seed(cfg.RANDOM_SEED)
     torch.manual_seed(cfg.RANDOM_SEED)
@@ -361,7 +361,7 @@ def train(cfg, world_size=1):
     # Load a checkpoint to resume training if applicable.
     start_epoch = cu.load_train_checkpoint(cfg, model, model_ema, optimizer, model_bucket)
 
-    if cfg.WANDB.SYNC_ENABLE:
+    if cfg.WANDB.SYNC_ENABLE and du.is_master_proc():
         env_path = misc.find_dotenv_in_parents()
         load_dotenv(env_path)
         wandb.login(key=os.getenv("WANDB"))
