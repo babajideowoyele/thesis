@@ -14,7 +14,6 @@ from tadaconv.datasets.utils.transformations import ColorJitter, KineticsResized
 import tadaconv.utils.logging as logging
 from tadaconv.datasets.base.builder import DATASET_REGISTRY
 from tadaconv.utils.mvfoul_translation import translate_annotation
-from utils import crop_center
 
 logger = logging.get_logger(__name__)
 
