@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 """Train a video classification model."""
-from dotenv import load_dotenv
 import numpy as np
 import pprint
 import torch
@@ -363,6 +362,7 @@ def train(rank, cfg, world_size=1):
 
     if cfg.WANDB.SYNC_ENABLE and du.is_master_proc():
         env_path = misc.find_dotenv_in_parents()
+        from dotenv import load_dotenv
         load_dotenv(env_path)
         wandb.login(key=os.getenv("WANDB"))
         wandb_run = wandb.init(

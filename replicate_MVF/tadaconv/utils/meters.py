@@ -833,3 +833,59 @@ class ValMeter(object):
     
     def set_model_ema_enabled(self, model_ema_enabled):
         self.model_ema_enabled = model_ema_enabled
+
+class TestMeter(object):
+
+    def __init__(self, total_iters, wandb=None):
+        self.wandb = wandb
+        self.iter_timer = Timer()
+        self.total_iters = total_iters
+        self.aggregation = {}
+
+    def iter_tic(self):
+        """
+        Start to record time.
+        """
+        self.iter_timer.reset()
+
+    def iter_toc(self):
+        """
+        Stop to record time.
+        """
+        self.iter_timer.pause()
+
+    def log_stats(self, bal_acc, cur_iter):
+        """
+        Log the stats.
+        Args:
+            stats (dict): stats to be logged.
+        """
+        stats = {
+            "_type": "test_iter",
+            "iter": "{}/{}".format(cur_iter + 1, self.total_iters),
+            "time_diff": self.iter_timer.seconds(),
+            "gpu_mem": "{:.2f} GB".format(misc.gpu_mem_usage()),
+            "acc": bal_acc
+        }
+        logging.log_json_stats(stats)
+        if self.wandb is not None:
+            self.wandb.log(stats)
+        logging.log_json_stats(stats)
+
+    def update_aggregation(self, measurements: dict[str, torch.Tensor]):
+        for k, v in measurements.items():
+            self.aggregation.get(k, []).append(v)
+        
+    def log_test(self):
+        for k in self.aggregation:
+            self.aggregation[k] = torch.mean(torch.stack(self.aggregation[k]))
+        if self.wandb is not None:
+            self.wandb.log(self.aggregation)
+        logging.log_json_stats(self.aggregation)
+
+        
+
+
+        
+
+    

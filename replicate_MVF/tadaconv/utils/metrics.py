@@ -96,14 +96,14 @@ def joint_topks_correct(preds, labels, ks):
     
     return topks_correct_all, b
 
-def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks: dict[str, int]) -> dict[str, dict[str, float]]:
+def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks: dict[str, int]) -> dict[str, torch.Tensor]:
     """
     Computes the balanced accuracy.
     Args:
         preds (array): array of predictions. Dimension is N x ClassNum.
         labels (array): array of labels. Dimension is N.
     """
-    balanced_acc = {"balanced_acc_joint": 0.0}
+    balanced_acc = {}
     for key, prediction in preds.items():
         per_class_acc = []
         num_classes = ks[key]
@@ -116,10 +116,28 @@ def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Te
             class_correct = (pred_classes[class_mask] == label[class_mask]).sum()
             class_acc = class_correct.float() / class_mask.sum().float()
             per_class_acc.append(class_acc)
-        balanced_acc[key] = (torch.stack(per_class_acc).mean() * 100.0).item()
-        balanced_acc["balanced_acc_joint"] += balanced_acc[key]
-    balanced_acc["balanced_acc_joint"] = balanced_acc["balanced_acc_joint"] / len(ks)
+        balanced_acc[key] = (torch.stack(per_class_acc).mean() * 100.0)
     return balanced_acc
+
+def accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks: dict[str, int]) -> torch.Tensor:
+    """
+    Computes the accuracy.
+    Args:
+        preds (array): array of predictions. Dimension is N x ClassNum.
+        labels (array): array of labels. Dimension is N.
+    """
+    total_correct = 0
+    total_samples = 0
+    for key, prediction in preds.items():
+        _, pred_classes = torch.max(prediction, dim=1)
+        label = labels[key]
+        correct = (pred_classes == label).sum()
+        total_correct += correct.item()
+        total_samples += label.size(0)
+    acc = torch.Tensor(total_correct / total_samples) * 100.0
+    return acc
+
+
     
 
 def topks_correct(preds, labels, ks):
