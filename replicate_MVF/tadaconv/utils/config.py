@@ -250,11 +250,6 @@ class Config(object):
         dic = dict(recur(k, v) for k, v in cfg_dict.items())
         self.__dict__.update(dic)
 
-    def __getattr__(self, name):
-        """
-        Return None for any attribute that doesn't exist instead of raising AttributeError.
-        """
-        return None
     
     def get_args(self):
         """

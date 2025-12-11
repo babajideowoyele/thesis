@@ -16,7 +16,6 @@ from tadaconv.utils.timer import Timer
 import tadaconv.utils.logging as logging
 import tadaconv.utils.metrics as metrics
 import tadaconv.utils.misc as misc
-import tadaconv.utils.distributed as du
 
 logger = logging.get_logger(__name__)
 

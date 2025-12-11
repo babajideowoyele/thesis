@@ -19,6 +19,8 @@ VIDEO:
     DOUBLE_TADA: false
     FREEZE: false
     REDUCTION: 2
+    PREAGGREGATE:
+      NAME: IdentityPreaggregate
     BRANCH: 
       NAME: TAdaFormerBlock
       ROUTE_FUNC_K: [3, 3]

@@ -11,6 +11,14 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": "--cfg configs/projects/tadaformer/tadaformer_l14_soccer_head.yaml"
+        },
+        {
+            "name": "Python Debugger: Test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "--cfg configs/projects/tadaformer/tadaformer_l14_soccer_test.yaml"
         }
     ]
 }

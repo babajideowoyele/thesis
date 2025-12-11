@@ -1,8 +1,9 @@
+
 from tadaconv.utils.config import Config
 from runs.train import train
 if __name__ == "__main__":
     cfg = Config(load=True)
-    world_size = cfg.NUM_GPUS if cfg.NUM_GPUS is not None else 1
+    world_size = cfg.NUM_GPUS
     if world_size <= 1:
         train(0, cfg, world_size=world_size)
     else:

@@ -86,13 +86,3 @@ class MoSINet(BaseVideoModel):
             pred["move_joint"] = res
         return pred, logits
     
-
-@MODEL_REGISTRY.register()
-class FOULVisionTransformer(BaseVideoModel):
-    def __init__(self, cfg):
-        super(FOULVisionTransformer, self).__init__(cfg)
-    
-    def forward(self, x, mask):
-        x, mask = self.backbone(x, mask)
-        x, logits = self.head(x, mask)
-        return x, logits

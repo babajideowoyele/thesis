@@ -1,4 +1,3 @@
-from calendar import c
 import os
 import pprint
 import torch

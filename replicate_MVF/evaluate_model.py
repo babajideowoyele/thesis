@@ -1,3 +1,5 @@
+import atexit
+import os
 from tadaconv.utils.config import Config
 from runs.evaluate import evaluate
 
@@ -9,5 +11,9 @@ if __name__ == "__main__":
     if world_size <= 1:
         evaluate(0, cfg, world_size=world_size)
     else:
-        from torch.multiprocessing.spawn import spawn
-        spawn(evaluate, args=(cfg, world_size), nprocs=world_size)
+        def remove(file: str):
+            os.remove(file)
+        atexit.register(remove, "sharefile")
+        import torch.multiprocessing as mp
+        mp.spawn(evaluate, args=(cfg, world_size), nprocs=world_size)
+            
