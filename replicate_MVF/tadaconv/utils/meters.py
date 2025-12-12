@@ -864,7 +864,7 @@ class TestMeter(object):
             "iter": "{}/{}".format(cur_iter + 1, self.total_iters),
             "time_diff": self.iter_timer.seconds(),
             "gpu_mem": "{:.2f} GB".format(misc.gpu_mem_usage()),
-            "acc": bal_acc
+            "acc": {k: v.item() for k, v in bal_acc.items()}
         }
         logging.log_json_stats(stats)
         if self.wandb is not None:
@@ -877,7 +877,7 @@ class TestMeter(object):
         
     def log_test(self):
         for k in self.aggregation:
-            self.aggregation[k] = torch.mean(torch.stack(self.aggregation[k]))
+            self.aggregation[k] = torch.mean(torch.stack(self.aggregation[k])).item()
         if self.wandb is not None:
             self.wandb.log(self.aggregation)
         logging.log_json_stats(self.aggregation)

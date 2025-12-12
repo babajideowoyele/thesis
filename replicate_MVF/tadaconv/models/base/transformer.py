@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 from tadaconv.models.base.backbone import BACKBONE_REGISTRY
 from tadaconv.models.base.base_blocks import (
-    STEM_REGISTRY, BRANCH_REGISTRY, HEAD_REGISTRY, DropPath, BaseHead
+    STEM_REGISTRY, BRANCH_REGISTRY, HEAD_REGISTRY, PREAGGREGATE_REGISTRY, DropPath, BaseHead
 )
 
 from tadaconv.models.utils.init_helper import lecun_normal_, trunc_normal_, _init_transformer_weights

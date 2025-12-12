@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from tadaconv.utils.registry import Registry
 from tadaconv.models.base.base_blocks import (
-    Base3DResStage, STEM_REGISTRY, BRANCH_REGISTRY, InceptionBaseConv3D, PREAGGREATE_REGISTRY
+    Base3DResStage, STEM_REGISTRY, BRANCH_REGISTRY, InceptionBaseConv3D, PREAGGREGATE_REGISTRY
 )
 from tadaconv.models.module_zoo.ops.misc import LayerNorm
 from tadaconv.models.utils.init_helper import trunc_normal_
@@ -250,7 +250,7 @@ class VisionTransformer(nn.Module):
         self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
         self.ln_pre = nn.LayerNorm(width)
 
-        self.video_preaggregate = PREAGGREATE_REGISTRY.get(backbone_cfg.PREAGGREATE.NAME)(cfg)
+        self.video_preaggregate = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.layers = nn.Sequential(*[

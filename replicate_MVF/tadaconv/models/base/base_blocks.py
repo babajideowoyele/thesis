@@ -19,7 +19,7 @@ from tadaconv.models.utils.init_helper import lecun_normal_, trunc_normal_, _ini
 STEM_REGISTRY = Registry("Stem")
 BRANCH_REGISTRY = Registry("Branch")
 HEAD_REGISTRY = Registry("Head")
-PREAGGREATE_REGISTRY = Registry("Preaggregate")
+PREAGGREGATE_REGISTRY = Registry("Preaggregate")
 
 class BaseModule(nn.Module):
     """

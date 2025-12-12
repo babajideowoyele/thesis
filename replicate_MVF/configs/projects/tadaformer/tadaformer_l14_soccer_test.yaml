@@ -1,7 +1,7 @@
 TEST:
   ENABLE: true
   DATASET: MVFoul
-  BATCH_SIZE: 4
+  BATCH_SIZE: 32
   LOG_FILE: test_log.log
 DATA:
   DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
@@ -16,20 +16,16 @@ DATA:
   TEST_CROP_SIZE: 224
   MEAN: [0.48145466, 0.4578275, 0.40821073]
   STD: [0.26862954, 0.26130258, 0.27577711]
-VIDEO:
-  HEAD:
-    NUM_CLASSES: [9, 4]
-    DROPOUT_RATE: 0
-  BACKBONE:
-    META_ARCH: FOULVisionTransformer
+  CENTER_FRAME: 75
+    
 
-NUM_GPUS: 2
+NUM_GPUS: 1
 DATA_LOADER:
   NUM_WORKERS: 1
   PIN_MEMORY: false
 
 MODEL:
-  NAME: FOULVisionTransformer
+  NAME: FOULVideoModel
   
 VIDEO:
   BACKBONE:
@@ -49,11 +45,14 @@ VIDEO:
     DOUBLE_TADA: false
     FREEZE: true
     REDUCTION: 2
+    PREAGGREGATE:
+      NAME: IdentityPreaggregate
     BRANCH: 
       NAME: TAdaFormerBlock
       ROUTE_FUNC_K: [3, 3]
       ROUTE_FUNC_R: 2
     TEMP_ENHANCE: false
+
   HEAD:
     NAME: FOULHead
     OUTPUT_DIM: 512

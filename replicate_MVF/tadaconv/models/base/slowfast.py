@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from tadaconv.utils.registry import Registry
 from tadaconv.models.base.base_blocks import (
-    Base3DResStage, STEM_REGISTRY, BRANCH_REGISTRY
+    Base3DResStage, STEM_REGISTRY, BRANCH_REGISTRY, PREAGGREGATE_REGISTRY
 )
 from tadaconv.models.base.backbone import BACKBONE_REGISTRY, _n_conv_resnet
 from tadaconv.models.utils.init_helper import _init_convnet_weights

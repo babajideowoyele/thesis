@@ -129,12 +129,13 @@ def accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks
     total_correct = 0
     total_samples = 0
     for key, prediction in preds.items():
+        assert len(prediction.size()) == 2, "Predictions should be of shape N x ClassNum."
         _, pred_classes = torch.max(prediction, dim=1)
         label = labels[key]
         correct = (pred_classes == label).sum()
         total_correct += correct.item()
         total_samples += label.size(0)
-    acc = torch.Tensor(total_correct / total_samples) * 100.0
+    acc = torch.Tensor([total_correct / total_samples]) * 100.0
     return acc
 
 
