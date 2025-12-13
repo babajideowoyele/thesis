@@ -5,6 +5,7 @@ import torch.nn as nn
 from tadaconv.utils.registry import Registry
 from tadaconv.models.base.backbone import BACKBONE_REGISTRY
 from tadaconv.models.base.base_blocks import HEAD_REGISTRY
+from tadaconv.models.base.base_blocks import PREAGGREGATE_REGISTRY
 
 MODEL_REGISTRY = Registry("Model")
 
@@ -32,6 +33,7 @@ class BaseVideoModel(nn.Module):
         
         # the backbone is created according to meta-architectures 
         # defined in models/base/backbone.py
+
         self.backbone = BACKBONE_REGISTRY.get(cfg.VIDEO.BACKBONE.META_ARCH)(cfg=cfg)
 
         # the head is created according to the heads 
@@ -92,6 +94,7 @@ class FOULVideoModel(BaseVideoModel):
     def __init__(self, cfg):
         super(FOULVideoModel, self).__init__(cfg)
     
+
     def forward(self, x, mask):
         x, mask = self.backbone(x, mask)
         x, logits = self.head(x, mask)

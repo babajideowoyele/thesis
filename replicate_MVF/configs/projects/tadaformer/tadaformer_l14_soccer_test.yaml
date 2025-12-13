@@ -46,6 +46,7 @@ VIDEO:
     FREEZE: true
     REDUCTION: 2
     PREAGGREGATE:
+      ENABLE: false
       NAME: IdentityPreaggregate
     BRANCH: 
       NAME: TAdaFormerBlock
