@@ -244,13 +244,14 @@ class VisionTransformer(nn.Module):
             padding=(tublet_size//2, 0, 0),
             bias=False
         )
-
+        if cfg.PREAGGREGATE.ENABLE:
+            self.preaggregate = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg)
+        else:
+            self.preaggregate = PREAGGREGATE_REGISTRY.get("IdentityPreaggregate")(cfg)
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
         self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
         self.ln_pre = nn.LayerNorm(width)
-
-        self.video_preaggregate = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
         self.layers = nn.Sequential(*[
@@ -298,6 +299,7 @@ class VisionTransformer(nn.Module):
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         x = x + self.positional_embedding.to(x.dtype)
         x = self.ln_pre(x)
+        x = self.preaggregate(x)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.layers(x)

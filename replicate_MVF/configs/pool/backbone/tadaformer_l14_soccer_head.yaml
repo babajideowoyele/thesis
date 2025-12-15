@@ -20,7 +20,8 @@ VIDEO:
     FREEZE: true
     REDUCTION: 2
     PREAGGREGATE:
-      NAME: IdentityPreaggregate
+      ENABLE: true
+      NAME: MaskedIdentityPreaggregate
     BRANCH: 
       NAME: TAdaFormerBlock
       ROUTE_FUNC_K: [3, 3]
