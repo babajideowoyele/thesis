@@ -58,7 +58,9 @@ VIDEO:
   HEAD:
     NAME: FOULHead
     OUTPUT_DIM: 512
-    NUM_CLASSES: [9, 4]
+    NUM_CLASSES:
+      TYPE: 9
+      SEVERITY: 4
     DROPOUT_RATE: 0
   TIME_PROCESSOR:
     NAME: TemporalConv

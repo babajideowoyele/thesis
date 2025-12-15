@@ -1,1 +1,1 @@
-from tadaconv.models.module_zoo.preaggreagate.preaggregate import IdentityPreaggregate
+from tadaconv.models.module_zoo.preaggreagate.preaggregate import *

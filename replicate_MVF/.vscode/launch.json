@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "--cfg configs/projects/tadaformer/tadaformer_l14_soccer_head.yaml"
+            "args": "--cfg configs/projects/tadaformer/soccer/continue_backbone.yaml"
         },
         {
             "name": "Python Debugger: Test",

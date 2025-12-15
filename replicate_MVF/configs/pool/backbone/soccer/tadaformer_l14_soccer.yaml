@@ -21,7 +21,7 @@ VIDEO:
     REDUCTION: 2
     PREAGGREGATE:
       ENABLE: true
-      NAME: TemporalPooling
+      NAME: Identity
     BRANCH: 
       NAME: TAdaFormerBlock
       ROUTE_FUNC_K: [3, 3]

@@ -74,7 +74,7 @@ HUGGINGFACE:
   REPO: "KGolden/mvf_checkpoints"
   SAVE: true
   CACHE_DIR: "./hf_cache"
-  FILE_NAME: "backbone_temp"
+  SAVE_NAME: "backbone_temp"
 OUTPUT_CFG_FILE: configuration.log
 LOG_PERIOD: 4
 DIST_BACKEND: nccl

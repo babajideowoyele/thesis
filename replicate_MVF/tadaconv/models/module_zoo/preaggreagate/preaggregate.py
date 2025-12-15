@@ -4,7 +4,7 @@ import torch.nn as nn
 @PREAGGREGATE_REGISTRY.register()
 class Identity(nn.Module):
     def __init__(self, cfg):
-        pass
+        super().__init__()
 
     def forward(self, x):
         return x

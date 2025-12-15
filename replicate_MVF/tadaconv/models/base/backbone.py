@@ -244,10 +244,10 @@ class VisionTransformer(nn.Module):
             padding=(tublet_size//2, 0, 0),
             bias=False
         )
-        if cfg.PREAGGREGATE.ENABLE:
+        if backbone_cfg.PREAGGREGATE.ENABLE:
             self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg)
         else:
-            self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get("IdentityPreaggregate")(cfg)
+            self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get("Identity")(cfg)
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
         self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))

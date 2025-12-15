@@ -21,8 +21,8 @@ class FOULHead(BaseHeadx2):
         if dropout_rate > 0.0:
             self.dropout = torch.nn.Dropout(dropout_rate)
 
-        self.linear1 = torch.nn.Linear(dim, num_classes[0], bias=True)
-        self.linear2 = torch.nn.Linear(dim, num_classes[1], bias=True)
+        self.linear1 = torch.nn.Linear(dim, num_classes.TYPE, bias=True)
+        self.linear2 = torch.nn.Linear(dim, num_classes.SEVERITY, bias=True)
 
         if activation_func == "softmax":
             self.activation = torch.nn.Softmax(dim=-1)

@@ -90,6 +90,8 @@ VIDEO:
     ACTIVATION: softmax
     DROPOUT_RATE: 0
     NUM_CLASSES:
+      TYPE:
+      SEVERITY:
 OPTIMIZER:
   ADJUST_LR: false
   BASE_LR: 0.002

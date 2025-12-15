@@ -24,10 +24,11 @@ class SoftTargetCrossEntropy(nn.Module):
             reduction: defined for compatibility with other losses.
         """
         super(SoftTargetCrossEntropy, self).__init__()
+        self.weight = 1.0
 
     def forward(self, x, target):
         loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
-        return loss.mean()
+        return loss.mean() * self.weight
 
 class BalancedSoftTargetCrossEntropy(nn.Module):
 
@@ -37,6 +38,7 @@ class BalancedSoftTargetCrossEntropy(nn.Module):
             reduction: defined for compatibility with other losses.
         """
         super(BalancedSoftTargetCrossEntropy, self).__init__()
+        self.weight = 1.0
 
     def forward(self, x, target):
         loss = torch.zeros((1,), device=x.device)
@@ -48,7 +50,7 @@ class BalancedSoftTargetCrossEntropy(nn.Module):
                 class_pred = x[class_mask]
                 class_loss = torch.sum(-class_target * F.log_softmax(class_pred, dim=-1), dim=-1)
                 loss += class_loss.mean() / class_count
-        return loss
+        return loss * self.weight
 
 _LOSSES = {
     "cross_entropy": nn.CrossEntropyLoss,
@@ -56,7 +58,6 @@ _LOSSES = {
     "bce_logit": nn.BCEWithLogitsLoss,
     "mse": nn.MSELoss,
     "soft_target": SoftTargetCrossEntropy,
-    "balanced_soft_target": BalancedSoftTargetCrossEntropy,
 }
 
 
@@ -128,16 +129,9 @@ def calculate_loss(cfg, preds, logits, labels, cur_epoch):
                 loss = loss_fun(preds, labels["supervised_mixup"])
         else:
             if cfg.AUGMENTATION.LABEL_SMOOTHING > 0.0:
-                if "type" in labels and "severity" in labels:
-                    # MVFoul has its own label smoothing implementation.
-                    labels_ = label_smoothing(cfg, labels, device=device)
-                else:
-                    labels_ = label_smoothing(cfg, labels["supervised"], device=device)
+                labels_ = label_smoothing(cfg, labels["supervised"], device=device)
             else:
-                if "type" in labels and "severity" in labels:
-                    labels_ = labels
-                else:
-                    labels_ = labels["supervised"]
+                labels_ = labels["supervised"]
             if isinstance(labels_, dict):
                 # TODO: Improve this terrible abomination.
                 loss = 0
