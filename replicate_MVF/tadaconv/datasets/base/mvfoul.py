@@ -26,9 +26,22 @@ class Mvfoul(torch.utils.data.Dataset):
         self.cfg = cfg
         self.split = split
         self.data_root_dir  = cfg.DATA.DATA_ROOT_DIR
+        self.take_frames = self.get_num_frames(cfg)
         self._construct_dataset()
         self._config_transform()
 
+    @staticmethod
+    def get_num_frames(cfg):
+        assert cfg.DATA.NUM_INPUT_FRAMES is not None, "NUM_INPUT_FRAMES must be specified."
+        
+        if cfg.DATA.TAKE_NUM_FRAMES is not None:
+            tf = cfg.DATA.TAKE_NUM_FRAMES
+            assert tf >= cfg.DATA.NUM_INPUT_FRAMES, "TAKE_NUM_FRAMES must be greater than or equal to NUM_INPUT_FRAMES."
+        else:
+            tf = cfg.DATA.NUM_INPUT_FRAMES
+        assert tf % cfg.DATA.NUM_INPUT_FRAMES == 0, "TAKE_NUM_FRAMES must be divisible by NUM_INPUT_FRAMES."
+
+        return tf
     
     def _construct_dataset(self):
         if self.split == "train":
@@ -102,7 +115,7 @@ class Mvfoul(torch.utils.data.Dataset):
             height=height,
             width=width,
         )
-        indices = torch.linspace(0, num_frames - 1, steps=16).tolist()
+        indices = torch.linspace(0, num_frames - 1, steps=self.take_frames).tolist()
         frames = []
         for idx in indices:
             vid.set(cv2.CAP_PROP_POS_FRAMES, idx)

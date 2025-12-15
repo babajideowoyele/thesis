@@ -75,3 +75,4 @@ HUGGINGFACE:
   LOAD: true
   REPO: "KGolden/mvf_checkpoints"
   CACHE_DIR: "./hf_cache"
+  LOAD_NAME: "head_finetuned"

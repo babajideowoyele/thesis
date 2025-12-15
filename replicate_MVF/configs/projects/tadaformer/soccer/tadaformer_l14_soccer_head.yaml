@@ -1,45 +1,46 @@
-_BASE_RUN: ../../pool/run/training/finetune_soccer.yaml
-_BASE_MODEL: ../../pool/backbone/tadaformer_l14_soccer.yaml
+_BASE_RUN: ../../pool/run/training/soccer/finetune_soccer_head.yaml
+_BASE_MODEL: ../../pool/backbone/soccer/tadaformer_l14_soccer_head.yaml
 
 PRETRAIN:
   ENABLE: false
 TRAIN:
   ENABLE: true
   DATASET: Mvfoul
-  BATCH_SIZE: 4
+  BATCH_SIZE: 3
   FINE_TUNE: true
   LR_REDUCE: true
   INIT: clip
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"
+  CHECKPOINT_FILE_PATH: 
 TEST:
   ENABLE: true
   DATASET: MVFoul
-  BATCH_SIZE: 4
+  BATCH_SIZE: 8
 DATA:
   DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
   ANNO_DIR:
   WEIGHTED_LOSS: false
   SAMPLING_MODE: segment_based
   NUM_INPUT_FRAMES: 16
-  NUM_VIEWS: 2
+  NUM_VIEWS: 4
   TRAIN_JITTER_SCALES: [0.08, 1.0]
   TRAIN_CROP_SIZE: 224
   TEST_SCALE: 224
   TEST_CROP_SIZE: 224
   MEAN: [0.48145466, 0.4578275, 0.40821073]
   STD: [0.26862954, 0.26130258, 0.27577711]
+  CENTER_FRAME: 75
 VIDEO:
   HEAD:
     NUM_CLASSES: [9, 4]
     DROPOUT_RATE: 0
 
 OPTIMIZER:
-  BASE_LR: 2e-5
+  BASE_LR: 2e-4
   ADJUST_LR: false
   LR_POLICY: cosine_v2
   COSINE_END_LR: 1e-6
   COSINE_AFTER_WARMUP: true
-  MAX_EPOCH: 12
+  MAX_EPOCH: 24
   MOMENTUM: 0.9
   WEIGHT_DECAY: 0.05
   WARMUP_EPOCHS: 5
@@ -59,7 +60,7 @@ AUGMENTATION:
   SHUFFLE: true
   GRAY_FIRST: false
   IS_SPLIT: false
-  USE_GPU: true
+  USE_GPU: false
   SSV2_FLIP: true
   RATIO: [0.75, 1.333]
   MIXUP: 
@@ -73,7 +74,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 1
+NUM_GPUS: 2
 DATA_LOADER:
-  NUM_WORKERS: 1
+  NUM_WORKERS: 0
   PIN_MEMORY: false

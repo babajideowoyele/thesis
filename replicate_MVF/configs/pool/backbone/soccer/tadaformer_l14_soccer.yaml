@@ -1,5 +1,5 @@
 MODEL:
-  NAME: FOULVisionTransformer
+  NAME: FOULVideoModel
   
 VIDEO:
   BACKBONE:
@@ -17,11 +17,11 @@ VIDEO:
     REQUIRE_PROJ: false
     ATTN_MASK_ENABLE: false
     DOUBLE_TADA: false
-    FREEZE: true
+    FREEZE: false
     REDUCTION: 2
     PREAGGREGATE:
       ENABLE: true
-      NAME: MaskedIdentityPreaggregate
+      NAME: TemporalPooling
     BRANCH: 
       NAME: TAdaFormerBlock
       ROUTE_FUNC_K: [3, 3]

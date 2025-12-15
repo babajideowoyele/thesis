@@ -1,0 +1,101 @@
+PRETRAIN:
+  ENABLE: false
+TRAIN:
+  ENABLE: true
+  DATASET: MVFoul                    # !!@1
+  BATCH_SIZE: 4
+  LOG_FILE: training_log.log
+  LOSS_FUNC: balanced_soft_target
+  EVAL_PERIOD: 5
+  NUM_FOLDS: 12
+  AUTO_RESUME: false
+  CHECKPOINT_PERIOD: 4
+  CHECKPOINT_FILE_PATH: 
+  CHECKPOINT_TYPE: pytorch
+  CHECKPOINT_INFLATE: false
+  FINE_TUNE: true
+  ONLY_LINEAR: false
+TEST:
+  ENABLE: true                     # !!@3
+  DATASET:                          # !!@3
+  BATCH_SIZE: 1024
+  NUM_SPATIAL_CROPS: 1
+  SPATIAL_CROPS: cc
+  NUM_ENSEMBLE_VIEWS: 1
+  LOG_FILE: val.log
+  CHECKPOINT_FILE_PATH:
+  CHECKPOINT_TYPE: pytorch
+  AUTOMATIC_MULTI_SCALE_TEST: true
+DATA:
+  DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
+  ANNO_DIR: 
+  NUM_INPUT_FRAMES: 16
+  TAKE_NUM_FRAMES: 64
+  NUM_INPUT_CHANNELS: 1
+  SAMPLING_MODE: interval_based
+  SAMPLING_RATE: 4
+  TRAIN_JITTER_SCALES: [168, 224]
+  TRAIN_CROP_SIZE: 112
+  TEST_SCALE: 224
+  TEST_CROP_SIZE: 112
+  MEAN: [0.45, 0.45, 0.45]
+  STD: [0.225, 0.225, 0.225]
+  MULTI_LABEL: false
+  ENSEMBLE_METHOD: sum
+  FPS: 25
+  TARGET_FPS: 25
+  CENTER_FRAME: 75
+OPTIMIZER:
+  BASE_LR: 0.002
+  LR_POLICY: cosine
+  MAX_EPOCH: 300
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 1e-3
+  WARMUP_EPOCHS: 10
+  WARMUP_START_LR: 0.0002
+  OPTIM_METHOD: adam
+  DAMPENING: 0.0
+  NESTEROV: true
+BN:
+  FREEZE: true
+  WEIGHT_DECAY: 0.0
+  EPS: 1e-3
+DATA_LOADER:
+  NUM_WORKERS: 1
+  PIN_MEMORY: false
+  ENABLE_MULTI_THREAD_DECODE: true
+NUM_GPUS: 1
+SHARD_ID: 0
+NUM_SHARDS: 1
+RANDOM_SEED: 0
+OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts"
+HUGGINGFACE:
+  LOAD: true
+  REPO: "KGolden/mvf_checkpoints"
+  SAVE: true
+  CACHE_DIR: "./hf_cache"
+  LOAD_NAME: "backbone_temp"
+  SAVE_NAME: "head_temp"
+OUTPUT_CFG_FILE: configuration.log
+LOG_PERIOD: 4
+DIST_BACKEND: nccl
+LOG_MODEL_INFO: true
+LOG_CONFIG_INFO: true
+AUGMENTATION:
+  COLOR_AUG: true
+  BRIGHTNESS: 0.5
+  CONTRAST: 0.5
+  SATURATION: 0.5
+  HUE: 0.25
+  GRAYSCALE: 0.3
+  CONSISTENT: true
+  SHUFFLE: true
+  GRAY_FIRST: true
+  RATIO: [0.857142857142857, 1.1666666666666667]
+  USE_GPU: false
+PAI: false
+WANDB:
+  SYNC_ENABLE: true
+  ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
+  PROJECT_NAME: "Thesis-Goldenbaum"
+

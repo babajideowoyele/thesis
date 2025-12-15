@@ -489,6 +489,22 @@ def load_test_checkpoint(cfg, model, model_ema, model_bucket=None):
         )
         if checkpoint_path == 'ckp.pyth':
             bu.clear_tmp_file(checkpoint_path)
+    elif cfg.HUGGINGFACE.LOAD and (hf_identifier := hf_ckpt_available(cfg)) is not None:
+        logger.info(f"Load checkpoint from huggingface hub: {hf_identifier}")
+        checkpoint_path = download_checkpoint_from_huggingface(
+            cfg,
+            hf_identifier,
+            cfg.HUGGINGFACE.CACHE_DIR
+        )
+        load_checkpoint(
+            cfg,
+            checkpoint_path,
+            model,
+            model_ema,
+            cfg.NUM_GPUS*cfg.NUM_SHARDS > 1,
+            optimizer=None,
+            pre_process=cfg.TRAIN.CHECKPOINT_PRE_PROCESS.ENABLE
+        )
     elif has_checkpoint(cfg.OUTPUT_DIR):
         last_checkpoint = get_last_checkpoint(cfg.OUTPUT_DIR)
         load_checkpoint(cfg, last_checkpoint, model, model_ema, cfg.NUM_GPUS*cfg.NUM_SHARDS > 1, optimizer=None, pre_process=False)
