@@ -30,6 +30,7 @@ DATA:
   DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
   ANNO_DIR: 
   NUM_INPUT_FRAMES: 16
+  TAKE_NUM_FRAMES: 64
   NUM_INPUT_CHANNELS: 1
   SAMPLING_MODE: interval_based
   SAMPLING_RATE: 4
