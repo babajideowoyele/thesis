@@ -11,9 +11,7 @@ if __name__ == "__main__":
     if world_size <= 1:
         evaluate(0, cfg, world_size=world_size)
     else:
-        def remove(file: str):
-            os.remove(file)
-        atexit.register(remove, "sharefile")
+        os.remove("sharefile") if os.path.exists("sharefile") else None
         import torch.multiprocessing as mp
         mp.spawn(evaluate, args=(cfg, world_size), nprocs=world_size)
             

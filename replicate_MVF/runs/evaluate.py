@@ -91,14 +91,14 @@ def evaluate(rank, cfg, world_size=1):
 
     # Print config.
     if cfg.LOG_CONFIG_INFO:
-        logger.info("Train with config:")
+        logger.info("Test with config:")
         logger.info(pprint.pformat(cfg))
 
     # Build the video model and print model statistics.
-    model, _ = build_model(cfg)
+    model, _ = build_model(cfg, gpu_id=rank)
 
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
-        misc.log_model_info(model, cfg, use_train_input=True)
+        misc.log_model_info(model, cfg, use_train_input=False)
     
     # Load a checkpoint to resume training if applicable.
     cu.load_test_checkpoint(cfg, model, None)

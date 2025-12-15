@@ -104,6 +104,7 @@ def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Te
         labels (array): array of labels. Dimension is N.
     """
     balanced_acc = {}
+    dev = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
     for key, prediction in preds.items():
         per_class_acc = []
         num_classes = ks[key]
@@ -116,7 +117,7 @@ def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Te
             class_correct = (pred_classes[class_mask] == label[class_mask]).sum()
             class_acc = class_correct.float() / class_mask.sum().float()
             per_class_acc.append(class_acc)
-        balanced_acc[key] = (torch.stack(per_class_acc).mean() * 100.0)
+        balanced_acc[key] = (torch.stack(per_class_acc).mean().to(dev) * 100.0)
     return balanced_acc
 
 def accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks: dict[str, int]) -> torch.Tensor:
@@ -136,6 +137,8 @@ def accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks
         total_correct += correct.item()
         total_samples += label.size(0)
     acc = torch.Tensor([total_correct / total_samples]) * 100.0
+    dev = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
+    acc = acc.to(dev)
     return acc
 
 

@@ -343,7 +343,7 @@ def train(rank, cfg, world_size=1):
         logger.info(pprint.pformat(cfg))
 
     # Build the video model and print model statistics.
-    model, model_ema = build_model(cfg)
+    model, model_ema = build_model(cfg, rank)
 
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg, use_train_input=True)

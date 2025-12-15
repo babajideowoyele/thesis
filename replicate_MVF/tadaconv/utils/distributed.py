@@ -303,8 +303,9 @@ def ddp_setup(rank: int, world_size: int):
       world_size: Total number of processes
    """
    torch.cuda.set_device(rank)
-   torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size,
-                                        init_method="file://" + os.path.abspath("sharedfile"))
+   os.environ["MASTER_ADDR"] = "localhost"
+   os.environ["MASTER_PORT"] = "29500" 
+   torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size)
 
 
 def get_local_rank() -> int:

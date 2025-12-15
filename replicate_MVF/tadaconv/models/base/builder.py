@@ -5,8 +5,6 @@
 
 import torch
 import torch.nn as nn
-
-
 import tadaconv.utils.logging as logging
 
 from tadaconv.models.base.models import BaseVideoModel, MODEL_REGISTRY
