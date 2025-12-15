@@ -245,9 +245,9 @@ class VisionTransformer(nn.Module):
             bias=False
         )
         if cfg.PREAGGREGATE.ENABLE:
-            self.preaggregate = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg)
+            self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg)
         else:
-            self.preaggregate = PREAGGREGATE_REGISTRY.get("IdentityPreaggregate")(cfg)
+            self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get("IdentityPreaggregate")(cfg)
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
         self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
@@ -290,8 +290,11 @@ class VisionTransformer(nn.Module):
 
         x = self.conv1(x)  # shape = [*, width, grid, grid]
 
-        b,c,t,h,w = x.shape
-        x = x.permute(0,2,3,4,1).reshape(b*t,h*w,c)
+        x = x.permute(0,2,3,4,1)  # NCTHW -> NTHWC
+        x = self.preaggregate(x)
+        b,t,h,w,c = x.shape
+
+        x = x.reshape(b*t,h*w,c)
 
         # x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         # x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
@@ -299,7 +302,7 @@ class VisionTransformer(nn.Module):
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         x = x + self.positional_embedding.to(x.dtype)
         x = self.ln_pre(x)
-        x = self.preaggregate(x)
+        
 
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.layers(x)
