@@ -67,8 +67,3 @@ AUGMENTATION:
   USE_GPU: true
 PAI: false
 
-
-WEIGHT:
-  TASK: 2
-  SEVERITY: 1
-

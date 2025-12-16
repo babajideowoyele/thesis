@@ -1,31 +1,5 @@
 PRETRAIN:
   ENABLE: false
-TRAIN:
-  ENABLE: true
-  DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 4
-  LOG_FILE: training_log.log
-  LOSS_FUNC: cross_entropy
-  EVAL_PERIOD: 4
-  NUM_FOLDS: 12
-  AUTO_RESUME: false
-  CHECKPOINT_PERIOD: 2
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"    # !!@2
-  CHECKPOINT_TYPE: pytorch
-  CHECKPOINT_INFLATE: false
-  FINE_TUNE: true
-  ONLY_LINEAR: false
-TEST:
-  ENABLE: true                     # !!@3
-  DATASET:                          # !!@3
-  BATCH_SIZE: 1024
-  NUM_SPATIAL_CROPS: 1
-  SPATIAL_CROPS: cc
-  NUM_ENSEMBLE_VIEWS: 1
-  LOG_FILE: val.log
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"
-  CHECKPOINT_TYPE: pytorch
-  AUTOMATIC_MULTI_SCALE_TEST: true
 DATA:
   DATA_ROOT_DIR: 
   ANNO_DIR: 
@@ -93,8 +67,4 @@ AUGMENTATION:
   RATIO: [0.857142857142857, 1.1666666666666667]
   USE_GPU: true
 PAI: false
-WANDB:
-  SYNC_ENABLE: true
-  ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
-  PROJECT_NAME: "Thesis-Goldenbaum"
 
