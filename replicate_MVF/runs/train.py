@@ -91,8 +91,10 @@ def train_epoch(
 
         loss, loss_in_parts, weight = losses.calculate_loss(cfg, preds, logits, labels, cur_epoch + cfg.TRAIN.NUM_FOLDS * float(cur_iter) / data_size)
         
-        # check Nan Loss.
-        misc.check_nan_losses(loss)
+        # Check if loss is NaN
+        if torch.isnan(loss):
+            logger.error(f"NaN loss detected at epoch {cur_epoch}, iteration {cur_iter}")
+            raise ValueError("NaN loss encountered during training")
 
         # Perform the backward pass.
         optimizer.zero_grad()

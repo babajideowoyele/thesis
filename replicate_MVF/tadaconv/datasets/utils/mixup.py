@@ -33,7 +33,13 @@ def label_smoothing(cfg, target, device='cuda'):
         idx = 0
         target_ = {}
         for k, v in target.items():
-            target_[k] = label_smoothing_target(v, cfg.VIDEO.HEAD.NUM_CLASSES.get(k), cfg.AUGMENTATION.LABEL_SMOOTHING, device=device)
+            if k == 'type':
+                num_classes = cfg.VIDEO.HEAD.NUM_CLASSES.TYPE
+            elif k == 'severity':
+                num_classes = cfg.VIDEO.HEAD.NUM_CLASSES.SEVERITY
+            else:
+                num_classes = cfg.VIDEO.HEAD.NUM_CLASSES.get(k)
+            target_[k] = label_smoothing_target(v, num_classes, cfg.AUGMENTATION.LABEL_SMOOTHING, device=device)
             idx+= 1
     else:
         target_ = label_smoothing_target(target, cfg.VIDEO.HEAD.NUM_CLASSES, cfg.AUGMENTATION.LABEL_SMOOTHING, device=device)

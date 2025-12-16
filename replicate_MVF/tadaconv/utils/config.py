@@ -175,6 +175,18 @@ class Config(object):
                     cfg_base[k] = v
         return cfg_base
 
+    def get(self, key, default_value=None):
+        """
+        Get the attribute value given the key.
+        Args:
+            key (str): the key to get the attribute value.
+            default_value: the default value to return when the key is not found.
+        """
+        if key in self.cfg_dict.keys():
+            return self.cfg_dict[key]
+        else:
+            return default_value
+
     def _merge_cfg_from_command(self, args, cfg):
         """
         Merge cfg from command. Currently only support depth of four. 

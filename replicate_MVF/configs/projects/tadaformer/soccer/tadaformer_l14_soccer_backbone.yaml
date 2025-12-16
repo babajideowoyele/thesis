@@ -83,3 +83,20 @@ TRAIN:
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
   ONLY_LINEAR: false
+
+TEST:
+  ENABLE: true                     # !!@3
+  DATASET: Mvfoul                         # !!@3
+  BATCH_SIZE: 8
+  NUM_SPATIAL_CROPS: 1
+  SPATIAL_CROPS: cc
+  NUM_ENSEMBLE_VIEWS: 1
+  LOG_FILE: val.log
+  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"
+  CHECKPOINT_TYPE: pytorch
+  AUTOMATIC_MULTI_SCALE_TEST: true
+
+WANDB:
+  SYNC_ENABLE: true
+  ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
+  PROJECT_NAME: "Thesis-Goldenbaum"

@@ -1,16 +1,5 @@
 PRETRAIN:
   ENABLE: false
-TEST:
-  ENABLE: true                     # !!@3
-  DATASET:                          # !!@3
-  BATCH_SIZE: 8
-  NUM_SPATIAL_CROPS: 1
-  SPATIAL_CROPS: cc
-  NUM_ENSEMBLE_VIEWS: 1
-  LOG_FILE: val.log
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"
-  CHECKPOINT_TYPE: pytorch
-  AUTOMATIC_MULTI_SCALE_TEST: true
 DATA:
   DATA_ROOT_DIR: 
   ANNO_DIR: 
@@ -35,7 +24,7 @@ OPTIMIZER:
   MAX_EPOCH: 12
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-3
-  WARMUP_EPOCHS: 5
+  WARMUP_EPOCHS: 2
   WARMUP_START_LR: 0.0002
   OPTIM_METHOD: adam
   DAMPENING: 0.0
@@ -77,8 +66,9 @@ AUGMENTATION:
   RATIO: [0.857142857142857, 1.1666666666666667]
   USE_GPU: true
 PAI: false
-WANDB:
-  SYNC_ENABLE: true
-  ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
-  PROJECT_NAME: "Thesis-Goldenbaum"
+
+
+WEIGHT:
+  TASK: 2
+  SEVERITY: 1
 
