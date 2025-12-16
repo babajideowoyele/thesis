@@ -18,7 +18,7 @@ class TemporalPooling(nn.Module):
     
     def forward(self, x):
         assert x.dim() == 5, "Input tensor must be 5D (N, T, H, W, C)"
-        assert x.size(1) % self.T == 0, f"Input tensor temporal dimension must divisible by {self.T}"
+        assert x.size(1) % self.T == 0, f"Input tensor temporal dimension must divisible by {self.T} but has size {x.size()}"
 
         N, T, H, W, C = x.shape
         x = x.view(N, self.T, T // self.T, H, W, C)
