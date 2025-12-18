@@ -68,13 +68,13 @@ AUGMENTATION:
     TYPE: rand-m9-n4-mstd0.5-inc1
 NUM_GPUS: 2
 DATA_LOADER:
-  NUM_WORKERS: 2
+  NUM_WORKERS: 16
   PIN_MEMORY: false
 
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 128
+  BATCH_SIZE: 16
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
   EVAL_PERIOD: 4
