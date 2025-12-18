@@ -23,12 +23,12 @@ def crop_center(img, crop_width, crop_height):
     cropped = img[y1:y2, x1:x2]
     return cropped
 
-def get_video_tensor(video_path):
+def get_video_tensor(video_path, num_frames=16):
     vid = cv2.VideoCapture(video_path)
 
     count, success = 0, True
     num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    indices = torch.linspace(0, num_frames - 1, steps=16).long()
+    indices = torch.linspace(0, num_frames - 1, steps=num_frames).long()
     mask = torch.zeros(num_frames, dtype=torch.bool)
     mask[indices] = True
     frames = []
