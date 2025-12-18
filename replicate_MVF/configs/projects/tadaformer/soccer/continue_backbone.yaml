@@ -66,7 +66,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 2
+NUM_GPUS: 1
 DATA_LOADER:
   NUM_WORKERS: 2
   PIN_MEMORY: false
@@ -81,7 +81,7 @@ TRAIN:
   NUM_FOLDS: 1
   AUTO_RESUME: true
   CHECKPOINT_PERIOD: 2
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints/checkpoint_epoch_00002.pyth"    # !!@2
+  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_backbone_no_temp/checkpoint_epoch_00004.pyth"    # !!@2
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true

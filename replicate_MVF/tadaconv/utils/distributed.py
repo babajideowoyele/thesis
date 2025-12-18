@@ -296,16 +296,17 @@ def get_local_size() -> int:
         return 1
     return dist.get_world_size(group=_LOCAL_PROCESS_GROUP)
 
-def ddp_setup(rank: int, world_size: int):
-   """
-   Args:
+def ddp_setup(rank: int, world_size: int, default=False):
+    """
+    Args:
        rank: Unique identifier of each process
       world_size: Total number of processes
-   """
-   torch.cuda.set_device(rank)
-   os.environ["MASTER_ADDR"] = "localhost"
-   os.environ["MASTER_PORT"] = "29500" 
-   torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size)
+    """
+    torch.cuda.set_device(rank)
+    if default:
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = "29500" 
+    torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size)
 
 
 def get_local_rank() -> int:

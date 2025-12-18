@@ -8,4 +8,10 @@ if __name__ == "__main__":
         train(0, cfg, world_size=world_size)
     else:
         from torch.multiprocessing.spawn import spawn
+        import socket, os
+        s=socket.socket()
+        s.bind(('',0))
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = str(s.getsockname()[1])
+        s.close()
         spawn(train, args=(cfg, world_size), nprocs=world_size)

@@ -36,7 +36,7 @@ OPTIMIZER:
   MOMENTUM: 0.9
   WEIGHT_DECAY: 0.05
   WARMUP_EPOCHS: 2
-  WARMUP_START_LR: 1e-6
+  WARMUP_START_LR: 1e-5
   OPTIM_METHOD: adamw
   DAMPENING: 0.0
   NESTEROV: true
@@ -66,7 +66,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 1
+NUM_GPUS: 2
 DATA_LOADER:
   NUM_WORKERS: 2
   PIN_MEMORY: false
@@ -100,6 +100,6 @@ TEST:
   AUTOMATIC_MULTI_SCALE_TEST: true
 
 WANDB:
-  SYNC_ENABLE: false
+  SYNC_ENABLE: true
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
