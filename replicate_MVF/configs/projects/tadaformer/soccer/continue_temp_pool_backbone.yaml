@@ -66,7 +66,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 1
+NUM_GPUS: 2
 DATA_LOADER:
   NUM_WORKERS: 16
   PIN_MEMORY: false
@@ -74,7 +74,7 @@ DATA_LOADER:
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 2
+  BATCH_SIZE: 4
   ACCUMULATE_EVERY: 16 # To simulate larger batch on limited GPU memory, must be divisor of BATCH_SIZE or empty to disable
   MAX_BAD_EXAMPLES: 20
   BAD_EXAMPLE_THRESHOLD: 10
@@ -84,7 +84,7 @@ TRAIN:
   NUM_FOLDS: 1
   AUTO_RESUME: true
   CHECKPOINT_PERIOD: 2
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_backbone/checkpoint_epoch_00011.pyth"    # !!@2
+  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_backbone/checkpoint_epoch_00012.pyth"    # !!@2
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
@@ -98,11 +98,11 @@ TEST:
   SPATIAL_CROPS: cc
   NUM_ENSEMBLE_VIEWS: 1
   LOG_FILE: val.log
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_backbone/checkpoint_epoch_00011.pyth" 
+  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_backbone/checkpoint_epoch_00012.pyth" 
   CHECKPOINT_TYPE: pytorch
   AUTOMATIC_MULTI_SCALE_TEST: true
 
 WANDB:
-  SYNC_ENABLE: false
+  SYNC_ENABLE: true
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
