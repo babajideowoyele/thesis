@@ -27,39 +27,6 @@ from tadaconv.datasets.utils.mixup import Mixup
 
 logger = logging.get_logger(__name__)
 
-def compute_batch(model, inputs, masks, cfg):
-    """
-    Compute the predictions and logits for a batch.
-    Args:
-        model (model): the video model to compute the predictions.
-        inputs (tensor): the input data.
-        cfg (Config): The global config
-
-    """
-    if cfg.TRAIN.ACCUMULATE_EVERY > 0 and cfg.TRAIN.ACCUMULATE_EVERY < cfg.TRAIN.BATCH_SIZE:
-        assert cfg.TRAIN.BATCH_SIZE % cfg.TRAIN.ACCUMULATE_EVERY == 0, "BATCH_SIZE must be divisible by ACCUMULATE_EVERY"
-        mini_batch_size = cfg.TRAIN.BATCH_SIZE // cfg.TRAIN.ACCUMULATE_EVERY
-        bs = inputs.shape[0]
-        preds_list = []
-        logits_list = []
-        for i in range(0, bs, mini_batch_size):
-            inputs_mini = inputs[i:i+mini_batch_size]
-            masks_mini = masks[i:i+mini_batch_size]
-            preds_mini, logits_mini = model(inputs_mini, masks_mini)
-            preds_list.append(preds_mini)
-            logits_list.append(logits_mini)
-        if isinstance(preds_list[0], dict):
-            preds = {}
-            for k in preds_list[0].keys():
-                preds[k] = torch.cat([p[k] for p in preds_list], dim=0)
-            logits = torch.cat(logits_list, dim=0)
-        else:
-            preds = torch.cat(preds_list, dim=0)
-            logits = torch.cat(logits_list, dim=0)
-        return preds, logits
-    else:
-        return model(inputs, masks)
-
 
 def train_epoch(
     train_loader, model, model_ema, optimizer, train_meter, cur_epoch, mixup_fn, cfg
@@ -102,6 +69,7 @@ def train_epoch(
     data_size = len(train_loader)
 
     torch.cuda.memory_summary()
+    accum_steps = cfg.TRAIN.ACCUMULATE_EVERY if cfg.TRAIN.ACCUMULATE_EVERY is not None and cfg.TRAIN.ACCUMULATE_EVERY > 0 else 1.
 
     for cur_iter, (inputs, masks, labels) in enumerate(train_loader):
         # Transfer the data to the current GPU device.        
@@ -119,23 +87,30 @@ def train_epoch(
         lr = optim.get_epoch_lr(cur_epoch + cfg.TRAIN.NUM_FOLDS * float(cur_iter) / data_size, cfg)
         optim.set_lr(optimizer, lr)
 
-        preds, logits = compute_batch(model, inputs, masks, cfg)
-
+        preds, logits = model(inputs, masks)
 
         loss, loss_in_parts, weight = losses.calculate_loss(cfg, preds, logits, labels, cur_epoch + cfg.TRAIN.NUM_FOLDS * float(cur_iter) / data_size)
+
+        loss = loss / accum_steps
         
         # Check if loss is NaN
         if torch.isnan(loss):
             logger.error(f"NaN loss detected at epoch {cur_epoch}, iteration {cur_iter}")
             raise ValueError("NaN loss encountered during training")
-
         # Perform the backward pass.
-        optimizer.zero_grad()
+
         loss.backward()
-        # Update the parameters.
-        optimizer.step()
-        if model_ema is not None:
-            model_ema.update(model)
+
+        do_step = ((cur_iter + 1) % accum_steps == 0) or (cur_iter + 1 == data_size)
+        
+        if do_step:
+            optimizer.step()
+            optimizer.zero_grad()
+
+            if model_ema is not None:
+                model_ema.update(model)
+
+        loss_for_log = loss.detach() * accum_steps
 
         if cfg.PRETRAIN.ENABLE or cfg.LOCALIZATION.ENABLE:
             if misc.get_num_gpus(cfg) > 1:
@@ -149,73 +124,30 @@ def train_epoch(
             )
             train_meter.update_custom_stats(loss_in_parts)
         else:
-            top1_err, top5_err = None, None
-            if isinstance(labels["supervised"], dict):
-                top1_err_all = {}
-                top5_err_all = {}
-                num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 4))
-                balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
-                for k, v in num_topks_correct.items():
-                    # Compute the errors.
-                    top1_err_split, top5_err_split = [
-                        (1.0 - x / b) * 100.0 for x in v
-                    ]
-
-                    # Gather all the predictions across all the devices.
-                    if misc.get_num_gpus(cfg) > 1:
-                        top1_err_split, top5_err_split = du.all_reduce(
-                            [top1_err_split, top5_err_split]
-                        )
-
-                    # Copy the stats from GPU to CPU (sync point).
-                    top1_err_split, top5_err_split = (
-                        top1_err_split.item(),
-                        top5_err_split.item(),
-                    )
-                    if "joint" not in k:
-                        top1_err_all["top1_err_"+k] = top1_err_split
-                        top5_err_all["top5_err_"+k] = top5_err_split
-                    else:
-                        top1_err = top1_err_split
-                        top5_err = top5_err_split
-                if misc.get_num_gpus(cfg) > 1:
-                    loss = du.all_reduce([loss])[0].item()
-                    for k, v in loss_in_parts.items():
-                        loss_in_parts[k] = du.all_reduce([v])[0].item()
-                else:
-                    loss = loss.item()
-                    for k, v in loss_in_parts.items():
-                        loss_in_parts[k] = v.item()
-                train_meter.update_custom_stats(balanced_acc)
-                train_meter.update_custom_stats(loss_in_parts)
-                train_meter.update_custom_stats(top1_err_all)
-                train_meter.update_custom_stats(top5_err_all)
+            assert isinstance(labels["supervised"], dict)
+            balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
+            
+            if misc.get_num_gpus(cfg) > 1:
+                loss_for_log = du.all_reduce([loss_for_log])[0].item()
+                for k, v in loss_in_parts.items():
+                    loss_in_parts[k] = du.all_reduce([v])[0].item()
             else:
-                # Compute the errors.
-                num_topks_correct = metrics.topks_correct(preds, labels["supervised"], (1, 5))
-                top1_err, top5_err = [
-                    (1.0 - x / preds.size(0)) * 100.0 for x in num_topks_correct
-                ]
+                loss_for_log = loss_for_log.item()
+                for k, v in loss_in_parts.items():
+                    loss_in_parts[k] = v.item()
+            train_meter.update_custom_stats(balanced_acc)
+            train_meter.update_custom_stats(loss_in_parts)
 
-                # Gather all the predictions across all the devices.
-                if misc.get_num_gpus(cfg) > 1:
-                    loss, top1_err, top5_err = du.all_reduce(
-                        [loss, top1_err, top5_err]
-                    )
+            # TODO: find bad examples
+            
 
-                # Copy the stats from GPU to CPU (sync point).
-                loss, top1_err, top5_err = (
-                    loss.item(),
-                    top1_err.item(),
-                    top5_err.item(),
-                )
+
 
             train_meter.iter_toc()
             # Update and log stats.
             train_meter.update_stats(
-                top1_err,
-                top5_err,
-                loss,
+                # TODO: replace with relevant metrics
+                loss_for_log,
                 lr,
                 inputs[0].size(0)
                 * max(

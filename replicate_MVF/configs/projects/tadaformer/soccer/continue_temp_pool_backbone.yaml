@@ -32,7 +32,7 @@ OPTIMIZER:
   LR_POLICY: cosine_v2
   COSINE_END_LR: 2e-6
   COSINE_AFTER_WARMUP: true
-  MAX_EPOCH: 12
+  MAX_EPOCH: 24
   MOMENTUM: 0.9
   WEIGHT_DECAY: 0.05
   WARMUP_EPOCHS: 2
@@ -74,11 +74,11 @@ DATA_LOADER:
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 64
-  ACCUMULATE_EVERY: 8 # To simulate larger batch on limited GPU memory, must be divisor of BATCH_SIZE or -1 to disable
+  BATCH_SIZE: 6
+  ACCUMULATE_EVERY: 8 # To simulate larger batch on limited GPU memory, must be divisor of BATCH_SIZE or empty to disable
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
-  EVAL_PERIOD: 4
+  EVAL_PERIOD: 0                   # Disable intermediate evals for now
   NUM_FOLDS: 1
   AUTO_RESUME: true
   CHECKPOINT_PERIOD: 2
@@ -101,6 +101,6 @@ TEST:
   AUTOMATIC_MULTI_SCALE_TEST: true
 
 WANDB:
-  SYNC_ENABLE: false
+  SYNC_ENABLE: true
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
