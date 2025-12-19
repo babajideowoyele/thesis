@@ -536,12 +536,9 @@ class TrainMeter(object):
         self.loss = ScalarMeter(cfg.LOG_PERIOD)
         self.loss_total = 0.0
         self.lr = None
+        self.bad_examples = []
         # Current minibatch errors (smoothed over a window).
-        self.mb_top1_err = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_top5_err = ScalarMeter(cfg.LOG_PERIOD)
         # Number of misclassified examples.
-        self.num_top1_mis = 0
-        self.num_top5_mis = 0
         self.num_samples = 0
         self.opts = defaultdict(ScalarMeter)
 
@@ -552,10 +549,6 @@ class TrainMeter(object):
         self.loss.reset()
         self.loss_total = 0.0
         self.lr = None
-        self.mb_top1_err.reset()
-        self.mb_top5_err.reset()
-        self.num_top1_mis = 0
-        self.num_top5_mis = 0
         self.num_samples = 0
         self.opts = defaultdict(ScalarMeter)
         
@@ -572,7 +565,7 @@ class TrainMeter(object):
         """
         self.iter_timer.pause()
 
-    def update_stats(self, top1_err, top5_err, loss, lr, mb_size, **kwargs):
+    def update_stats(self, loss, lr, mb_size, **kwargs):
         """
         Update the current stats.
         Args:
@@ -593,13 +586,13 @@ class TrainMeter(object):
             assert isinstance(v, (float, int))
             self.opts[k].add_value(v)
 
-        if not self._cfg.PRETRAIN.ENABLE and not self._cfg.LOCALIZATION.ENABLE:
-            # Current minibatch stats
-            self.mb_top1_err.add_value(top1_err)
-            self.mb_top5_err.add_value(top5_err)
-            # Aggregate stats
-            self.num_top1_mis += top1_err * mb_size
-            self.num_top5_mis += top5_err * mb_size
+    def set_bad_examples(self, bad_examples):
+        """
+        Set bad examples for logging.
+        Args:
+            bad_examples (list): list of bad examples.
+        """
+        self.bad_examples = bad_examples
             
     def update_custom_stats(self, stats):
         """
@@ -638,9 +631,8 @@ class TrainMeter(object):
         }
         for k,v in self.opts.items():
             stats[k] = v.get_win_median()
-        if not self._cfg.PRETRAIN.ENABLE and not self._cfg.LOCALIZATION.ENABLE:
-            stats["top1_err"] = self.mb_top1_err.get_win_median()
-            stats["top5_err"] = self.mb_top5_err.get_win_median()
+        if self.bad_examples:
+            stats["bad_examples"] = self.bad_examples
         logging.log_json_stats(stats)
         if self.wandb is not None:
             self.wandb.log(stats)
@@ -667,11 +659,7 @@ class TrainMeter(object):
         for k,v in self.opts.items():
             stats[k] = v.get_global_avg()
         if not self._cfg.PRETRAIN.ENABLE:
-            top1_err = self.num_top1_mis / self.num_samples
-            top5_err = self.num_top5_mis / self.num_samples
             avg_loss = self.loss_total / self.num_samples
-            stats["top1_err"] = top1_err
-            stats["top5_err"] = top5_err
             stats["loss"] = avg_loss
         logging.log_json_stats(stats)
         if self.wandb is not None:

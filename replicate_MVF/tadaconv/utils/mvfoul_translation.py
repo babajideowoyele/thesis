@@ -1,5 +1,6 @@
 import enum
 import pydantic
+import torch
 
 class ActionClass(enum.IntEnum):
     holding = 0
@@ -60,3 +61,44 @@ def translate_annotation(annotation):
         "severity": foul_annotation.Severity,
     }
     return translated
+
+def report_bad_examples(cfg, preds, labels):
+    threshold = cfg.TRAIN.BAD_EXAMPLE_THRESHOLD if cfg.TRAIN.BAD_EXAMPLE_THRESHOLD is not None else 0.
+    bad_examples = []
+
+    w_type = cfg.DATA.CLASS_WEIGHTS.TYPE
+    w_sev = cfg.DATA.CLASS_WEIGHTS.SEVERITY
+
+    p_type = preds["type"]      # (N, C_t), probs
+    p_sev = preds["severity"]   # (N, C_s), probs
+    y_type = labels['supervised']["type"]     # (N,)
+    y_sev = labels['supervised']["severity"]  # (N,)
+    for i in range(p_type.shape[0]):
+        pt_i = p_type[i]                    # (C_t,)
+        yt_i = y_type[i].item()
+        # max prob over wrong classes
+        mask_wrong_t = torch.ones_like(pt_i, dtype=torch.bool)
+        mask_wrong_t[yt_i] = False
+        worst_conf_t = pt_i[mask_wrong_t].max().item()/torch.abs(pt_i[yt_i]).item()
+
+        ps_i = p_sev[i]                    # (C_t,)
+        ys_i = y_sev[i].item()
+        # max prob over wrong classes
+        mask_wrong_s = torch.ones_like(ps_i, dtype=torch.bool)
+        mask_wrong_s[ys_i] = False
+        worst_conf_s = ps_i[mask_wrong_s].max().item()/torch.abs(ps_i[ys_i]).item()
+
+        score = w_type * worst_conf_t + w_sev * worst_conf_s
+
+        if score > threshold:
+            bad_examples.append({
+                "meta_data": labels['meta_data']['dir_name'][i],
+                "true_type": ActionClass(yt_i),
+                "pred_type": ActionClass(pt_i.argmax().item()),
+                "true_severity": ys_i,
+                "pred_severity": ps_i.argmax().item(),
+                "score": score,
+            })
+
+    bad_examples.sort(key=lambda x: x["score"], reverse=True)
+    return bad_examples if bad_examples else None

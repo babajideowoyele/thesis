@@ -12,6 +12,7 @@ import wandb
 import tadaconv.models.utils.losses as losses
 import tadaconv.models.utils.optimizer as optim
 import tadaconv.utils.checkpoint as cu
+from tadaconv.utils.mvfoul_translation import report_bad_examples
 import tadaconv.utils.tensor as tu
 import tadaconv.utils.distributed as du
 import tadaconv.utils.logging as logging
@@ -70,6 +71,7 @@ def train_epoch(
 
     torch.cuda.memory_summary()
     accum_steps = cfg.TRAIN.ACCUMULATE_EVERY if cfg.TRAIN.ACCUMULATE_EVERY is not None and cfg.TRAIN.ACCUMULATE_EVERY > 0 else 1.
+    bad_examples = []
 
     for cur_iter, (inputs, masks, labels) in enumerate(train_loader):
         # Transfer the data to the current GPU device.        
@@ -135,13 +137,16 @@ def train_epoch(
                 loss_for_log = loss_for_log.item()
                 for k, v in loss_in_parts.items():
                     loss_in_parts[k] = v.item()
+            bad_examples += report_bad_examples(cfg, preds, labels)
+            bad_examples.sort(key=lambda x: x['score'], reverse=True)
+            bad_examples = bad_examples[:cfg.TRAIN.MAX_BAD_EXAMPLES]
+
+
+            train_meter.set_bad_examples(bad_examples)
+
             train_meter.update_custom_stats(balanced_acc)
             train_meter.update_custom_stats(loss_in_parts)
-
-            # TODO: find bad examples
             
-
-
 
             train_meter.iter_toc()
             # Update and log stats.
