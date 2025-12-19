@@ -27,6 +27,39 @@ from tadaconv.datasets.utils.mixup import Mixup
 
 logger = logging.get_logger(__name__)
 
+def compute_batch(model, inputs, masks, cfg):
+    """
+    Compute the predictions and logits for a batch.
+    Args:
+        model (model): the video model to compute the predictions.
+        inputs (tensor): the input data.
+        cfg (Config): The global config
+
+    """
+    if cfg.TRAIN.ACCUMULATE_EVERY > 0 and cfg.TRAIN.ACCUMULATE_EVERY < cfg.TRAIN.BATCH_SIZE:
+        assert cfg.TRAIN.BATCH_SIZE % cfg.TRAIN.ACCUMULATE_EVERY == 0, "BATCH_SIZE must be divisible by ACCUMULATE_EVERY"
+        mini_batch_size = cfg.TRAIN.BATCH_SIZE // cfg.TRAIN.ACCUMULATE_EVERY
+        bs = inputs.shape[0]
+        preds_list = []
+        logits_list = []
+        for i in range(0, bs, mini_batch_size):
+            inputs_mini = inputs[i:i+mini_batch_size]
+            masks_mini = masks[i:i+mini_batch_size]
+            preds_mini, logits_mini = model(inputs_mini, masks_mini)
+            preds_list.append(preds_mini)
+            logits_list.append(logits_mini)
+        if isinstance(preds_list[0], dict):
+            preds = {}
+            for k in preds_list[0].keys():
+                preds[k] = torch.cat([p[k] for p in preds_list], dim=0)
+            logits = torch.cat(logits_list, dim=0)
+        else:
+            preds = torch.cat(preds_list, dim=0)
+            logits = torch.cat(logits_list, dim=0)
+        return preds, logits
+    else:
+        return model(inputs, masks)
+
 
 def train_epoch(
     train_loader, model, model_ema, optimizer, train_meter, cur_epoch, mixup_fn, cfg
@@ -86,8 +119,8 @@ def train_epoch(
         lr = optim.get_epoch_lr(cur_epoch + cfg.TRAIN.NUM_FOLDS * float(cur_iter) / data_size, cfg)
         optim.set_lr(optimizer, lr)
 
-        # Perform the forward pass.
-        preds, logits = model(inputs, masks)
+        preds, logits = compute_batch(model, inputs, masks, cfg)
+
 
         loss, loss_in_parts, weight = losses.calculate_loss(cfg, preds, logits, labels, cur_epoch + cfg.TRAIN.NUM_FOLDS * float(cur_iter) / data_size)
         
