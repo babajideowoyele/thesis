@@ -16,7 +16,7 @@ from tadaconv.utils.timer import Timer
 import tadaconv.utils.logging as logging
 import tadaconv.utils.metrics as metrics
 import tadaconv.utils.misc as misc
-
+from tadaconv.utils.mvfoul_translation import ActionClass
 logger = logging.get_logger(__name__)
 
 class TestMeter(object):
@@ -536,7 +536,14 @@ class TrainMeter(object):
         self.loss = ScalarMeter(cfg.LOG_PERIOD)
         self.loss_total = 0.0
         self.lr = None
-        self.bad_examples = []
+        # wrong 
+        self.bad_examples = {
+            ActionClass(k).name: {
+                "count": 0, 'examples': [], "avg_score": 0.0,
+                "true_class": {
+                    ActionClass(j).name: 0 for j in ActionClass._value2member_map_.keys()
+                    }
+            } for k in ActionClass._value2member_map_.keys()}
         # Current minibatch errors (smoothed over a window).
         # Number of misclassified examples.
         self.num_samples = 0
@@ -586,14 +593,18 @@ class TrainMeter(object):
             assert isinstance(v, (float, int))
             self.opts[k].add_value(v)
 
-    def set_bad_examples(self, bad_examples):
+    def set_bad_examples(self, bad_examples: list):
         """
         Set bad examples for logging.
         Args:
             bad_examples (list): list of bad examples.
         """
-        self.bad_examples = bad_examples
-            
+        for example in bad_examples:
+            self.bad_examples[ActionClass(example['pred_severity']).name]['count'] += 1
+            self.bad_examples[ActionClass(example['pred_severity']).name]['examples'].append(example['meta_data'])
+            self.bad_examples[ActionClass(example['pred_severity']).name]['avg_score'] += example['score'] / self.bad_examples[ActionClass(example['pred_severity']).name]['count']
+            self.bad_examples[ActionClass(example['pred_severity']).name]['true_class'][ActionClass(example['true_severity']).name] += 1
+        
     def update_custom_stats(self, stats):
         """
         Update stats using custom keys.

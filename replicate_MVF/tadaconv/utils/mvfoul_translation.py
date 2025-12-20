@@ -101,4 +101,4 @@ def report_bad_examples(cfg, preds, labels):
             })
 
     bad_examples.sort(key=lambda x: x["score"], reverse=True)
-    return bad_examples if bad_examples else None
+    return bad_examples if bad_examples else []

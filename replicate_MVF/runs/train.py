@@ -139,7 +139,6 @@ def train_epoch(
                     loss_in_parts[k] = v.item()
             bad_examples += report_bad_examples(cfg, preds, labels)
             bad_examples.sort(key=lambda x: x['score'], reverse=True)
-            bad_examples = bad_examples[:cfg.TRAIN.MAX_BAD_EXAMPLES]
 
 
             train_meter.set_bad_examples(bad_examples)
