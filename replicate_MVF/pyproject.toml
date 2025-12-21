@@ -13,6 +13,7 @@ dependencies = [
     "ffmpeg-python>=0.2.0",
     "numpy>=2.3.4",
     "opencv-python-headless>=4.11.0.86",
+    "pandas>=2.3.3",
     "psutil>=7.1.2",
     "pydantic>=2.12.3",
     "pyyaml>=6.0.3",

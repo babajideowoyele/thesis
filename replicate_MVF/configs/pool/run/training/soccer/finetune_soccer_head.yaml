@@ -1,5 +1,3 @@
-PRETRAIN:
-  ENABLE: false
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
@@ -76,24 +74,7 @@ HUGGINGFACE:
   CACHE_DIR: "./hf_cache"
   LOAD_NAME: "backbone_finetuned"
   SAVE_NAME: "head_finetuned"
-OUTPUT_CFG_FILE: configuration.log
-LOG_PERIOD: 4
-DIST_BACKEND: nccl
-LOG_MODEL_INFO: true
-LOG_CONFIG_INFO: true
-AUGMENTATION:
-  COLOR_AUG: true
-  BRIGHTNESS: 0.5
-  CONTRAST: 0.5
-  SATURATION: 0.5
-  HUE: 0.25
-  GRAYSCALE: 0.3
-  CONSISTENT: true
-  SHUFFLE: true
-  GRAY_FIRST: true
-  RATIO: [0.857142857142857, 1.1666666666666667]
-  USE_GPU: false
-PAI: false
+
 WANDB:
   SYNC_ENABLE: true
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"

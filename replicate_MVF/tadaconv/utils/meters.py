@@ -536,7 +536,7 @@ class TrainMeter(object):
         self.loss = ScalarMeter(cfg.LOG_PERIOD)
         self.loss_total = 0.0
         self.lr = None
-        # wrong 
+        # wrong - find trends to missclassify
         self.bad_examples = {
             ActionClass(k).name: {
                 "count": 0, 'examples': [], "avg_score": 0.0,
@@ -601,7 +601,9 @@ class TrainMeter(object):
         """
         for example in bad_examples:
             self.bad_examples[ActionClass(example['pred_severity']).name]['count'] += 1
-            self.bad_examples[ActionClass(example['pred_severity']).name]['examples'].append(example['meta_data'])
+            examples = self.bad_examples[ActionClass(example['pred_severity']).name]['examples']
+            examples.append(example['meta_data'])
+            self.bad_examples[ActionClass(example['pred_severity']).name]['examples'] = list(set(examples))
             self.bad_examples[ActionClass(example['pred_severity']).name]['avg_score'] += example['score'] / self.bad_examples[ActionClass(example['pred_severity']).name]['count']
             self.bad_examples[ActionClass(example['pred_severity']).name]['true_class'][ActionClass(example['true_severity']).name] += 1
         
