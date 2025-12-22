@@ -32,7 +32,7 @@ OPTIMIZER:
   LR_POLICY: cosine_v2
   COSINE_END_LR: 1e-6
   COSINE_AFTER_WARMUP: true
-  MAX_EPOCH: 12
+  MAX_EPOCH: 24
   MOMENTUM: 0.9
   WEIGHT_DECAY: 0.05
   WARMUP_EPOCHS: 2
@@ -66,15 +66,16 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 1
+NUM_GPUS: 2
 DATA_LOADER:
-  NUM_WORKERS: 2
+  NUM_WORKERS: 16
   PIN_MEMORY: false
 
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 4
+  BATCH_SIZE: 2
+
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
   EVAL_PERIOD: 4
