@@ -16,7 +16,7 @@ from tadaconv.utils.timer import Timer
 import tadaconv.utils.logging as logging
 import tadaconv.utils.metrics as metrics
 import tadaconv.utils.misc as misc
-
+from tadaconv.utils.mvfoul_translation import ActionClass
 logger = logging.get_logger(__name__)
 
 class TestMeter(object):
@@ -536,12 +536,16 @@ class TrainMeter(object):
         self.loss = ScalarMeter(cfg.LOG_PERIOD)
         self.loss_total = 0.0
         self.lr = None
+        # wrong - find trends to missclassify
+        self.bad_examples = {
+            ActionClass(k).name: {
+                "count": 0, 'examples': [], "avg_score": 0.0,
+                "true_class": {
+                    ActionClass(j).name: 0 for j in ActionClass._value2member_map_.keys()
+                    }
+            } for k in ActionClass._value2member_map_.keys()}
         # Current minibatch errors (smoothed over a window).
-        self.mb_top1_err = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_top5_err = ScalarMeter(cfg.LOG_PERIOD)
         # Number of misclassified examples.
-        self.num_top1_mis = 0
-        self.num_top5_mis = 0
         self.num_samples = 0
         self.opts = defaultdict(ScalarMeter)
 
@@ -552,10 +556,6 @@ class TrainMeter(object):
         self.loss.reset()
         self.loss_total = 0.0
         self.lr = None
-        self.mb_top1_err.reset()
-        self.mb_top5_err.reset()
-        self.num_top1_mis = 0
-        self.num_top5_mis = 0
         self.num_samples = 0
         self.opts = defaultdict(ScalarMeter)
         
@@ -572,7 +572,7 @@ class TrainMeter(object):
         """
         self.iter_timer.pause()
 
-    def update_stats(self, top1_err, top5_err, loss, lr, mb_size, **kwargs):
+    def update_stats(self, loss, lr, mb_size, **kwargs):
         """
         Update the current stats.
         Args:
@@ -593,14 +593,20 @@ class TrainMeter(object):
             assert isinstance(v, (float, int))
             self.opts[k].add_value(v)
 
-        if not self._cfg.PRETRAIN.ENABLE and not self._cfg.LOCALIZATION.ENABLE:
-            # Current minibatch stats
-            self.mb_top1_err.add_value(top1_err)
-            self.mb_top5_err.add_value(top5_err)
-            # Aggregate stats
-            self.num_top1_mis += top1_err * mb_size
-            self.num_top5_mis += top5_err * mb_size
-            
+    def set_bad_examples(self, bad_examples: list):
+        """
+        Set bad examples for logging.
+        Args:
+            bad_examples (list): list of bad examples.
+        """
+        for example in bad_examples:
+            self.bad_examples[ActionClass(example['pred_severity']).name]['count'] += 1
+            examples = self.bad_examples[ActionClass(example['pred_severity']).name]['examples']
+            examples.append(example['meta_data'])
+            self.bad_examples[ActionClass(example['pred_severity']).name]['examples'] = list(set(examples))
+            self.bad_examples[ActionClass(example['pred_severity']).name]['avg_score'] += example['score'] / self.bad_examples[ActionClass(example['pred_severity']).name]['count']
+            self.bad_examples[ActionClass(example['pred_severity']).name]['true_class'][ActionClass(example['true_severity']).name] += 1
+        
     def update_custom_stats(self, stats):
         """
         Update stats using custom keys.
@@ -638,9 +644,8 @@ class TrainMeter(object):
         }
         for k,v in self.opts.items():
             stats[k] = v.get_win_median()
-        if not self._cfg.PRETRAIN.ENABLE and not self._cfg.LOCALIZATION.ENABLE:
-            stats["top1_err"] = self.mb_top1_err.get_win_median()
-            stats["top5_err"] = self.mb_top5_err.get_win_median()
+        if self.bad_examples:
+            stats["bad_examples"] = self.bad_examples
         logging.log_json_stats(stats)
         if self.wandb is not None:
             self.wandb.log(stats)
@@ -667,11 +672,7 @@ class TrainMeter(object):
         for k,v in self.opts.items():
             stats[k] = v.get_global_avg()
         if not self._cfg.PRETRAIN.ENABLE:
-            top1_err = self.num_top1_mis / self.num_samples
-            top5_err = self.num_top5_mis / self.num_samples
             avg_loss = self.loss_total / self.num_samples
-            stats["top1_err"] = top1_err
-            stats["top5_err"] = top5_err
             stats["loss"] = avg_loss
         logging.log_json_stats(stats)
         if self.wandb is not None:

@@ -26,9 +26,11 @@ class SoftTargetCrossEntropy(nn.Module):
         super(SoftTargetCrossEntropy, self).__init__()
         self.weight = 1.0
 
-    def forward(self, x, target):
-        loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
-        return loss.mean() * self.weight
+    def forward(self, x, target, class_weight=None):
+        log_probs = F.log_softmax(x, dim=-1)          # (B, C)
+        weighted_log_probs = log_probs * class_weight if class_weight is not None else log_probs # (B, C) via broadcasting
+        loss_per_example = -torch.sum(target * weighted_log_probs, dim=-1)
+        return loss_per_example.mean() * self.weight
 
 class BalancedSoftTargetCrossEntropy(nn.Module):
 
@@ -135,12 +137,13 @@ def calculate_loss(cfg, preds, logits, labels, cur_epoch):
             if isinstance(labels_, dict):
                 # TODO: Improve this terrible abomination.
                 loss = 0
-                for k, v in labels_.items():
+                for k, truth in labels_.items():
                     if cfg.DATA.WEIGHTED_LOSS:
                         class_weight = cfg.cfg_dict["DATA"]["CLASS_WEIGHTS"].get(k.upper(), None)
                         class_weight = torch.tensor(class_weight, dtype=torch.float32).to(device)
                         loss_fun.weight = class_weight
-                    loss_in_parts["loss_"+k] = loss_fun(preds[k], v)
+                    class_weight = misc.compute_class_weight(cfg, k, device=device)
+                    loss_in_parts["loss_"+k] = loss_fun(preds[k], truth, class_weight)
                     loss += loss_in_parts["loss_"+k]
                     
             else:

@@ -41,7 +41,7 @@ NUM_GPUS: 2
 SHARD_ID: 0
 NUM_SHARDS: 1
 RANDOM_SEED: 0
-OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts"
+OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_backbone_no_temp"
 HUGGINGFACE:
   LOAD: false
   REPO: "KGolden/mvf_checkpoints"

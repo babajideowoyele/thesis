@@ -31,6 +31,17 @@ def check_nan_losses(loss):
     if math.isnan(loss):
         raise RuntimeError("ERROR: Got NaN losses {}".format(datetime.now()))
 
+def compute_class_weight(cfg, class_idx, device=None):
+    if cfg.DATA.WEIGHTED_LOSS:
+        freq = cfg.cfg_dict["DATA"]["FREQUENCIES"].get(class_idx.upper(), None)
+        assert 0 not in freq, "Frequency for class {} is zero.".format(class_idx)
+        if freq is not None:
+            freq = torch.tensor(freq, dtype=torch.float32).to(device)
+            class_weight = 1.0 / (freq + 1e-6)
+            class_weight = (class_weight / class_weight.sum()) * len(freq)
+            return class_weight
+    return None
+
 
 def params_count(model):
     """

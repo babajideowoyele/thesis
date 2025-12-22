@@ -1,60 +1,22 @@
 _BASE_RUN: ../../../pool/run/training/soccer/finetune_soccer.yaml
-_BASE_MODEL: ../../../pool/backbone/soccer/tadaformer_l14_soccer.yaml
+_BASE_MODEL: ../../../pool/backbone/soccer/general_soccer.yaml
 
 
 DATA:
-  DATA_ROOT_DIR: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
-  ANNO_DIR:
-  WEIGHTED_LOSS: true
-  CLASS_WEIGHTS:
-    TYPE: 2.0
-    SEVERITY: 1.0
-  SAMPLING_MODE: segment_based
   NUM_INPUT_FRAMES: 16
   TAKE_NUM_FRAMES: 16
-  NUM_VIEWS: 2
-  TRAIN_JITTER_SCALES: [0.08, 1.0]
-  TRAIN_CROP_SIZE: 224
-  TEST_SCALE: 224
-  TEST_CROP_SIZE: 224
-  MEAN: [0.48145466, 0.4578275, 0.40821073]
-  STD: [0.26862954, 0.26130258, 0.27577711]
-VIDEO:
-  HEAD:
-    NUM_CLASSES:
-      TYPE: 9
-      SEVERITY: 4
-    DROPOUT_RATE: 0
+
 
 OPTIMIZER:
   BASE_LR: 2e-4
   ADJUST_LR: true
-  LR_POLICY: cosine_v2
-  COSINE_END_LR: 1e-6
+  COSINE_END_LR: 2e-6
   COSINE_AFTER_WARMUP: true
   MAX_EPOCH: 24
-  MOMENTUM: 0.9
-  WEIGHT_DECAY: 0.05
   WARMUP_EPOCHS: 2
-  WARMUP_START_LR: 1e-6
-  OPTIM_METHOD: adamw
-  DAMPENING: 0.0
-  NESTEROV: true
-  HEAD_LRMULT: 10
-  NEW_PARAMS: ["tada"]
-  NEW_PARAMS_MULT: 10
-  LAYER_WISE_LR_DECAY: 0.85
+  WARMUP_START_LR: 1e-5
+
 AUGMENTATION: 
-  COLOR_AUG: true
-  GRAYSCALE: 0.2
-  COLOR_P: 0.0
-  CONSISTENT: true
-  SHUFFLE: true
-  GRAY_FIRST: false
-  IS_SPLIT: false
-  USE_GPU: true
-  SSV2_FLIP: true
-  RATIO: [0.75, 1.333]
   MIXUP: 
     ENABLE: false
   CUTMIX: 
