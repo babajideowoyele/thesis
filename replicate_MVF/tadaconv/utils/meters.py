@@ -600,12 +600,12 @@ class TrainMeter(object):
             bad_examples (list): list of bad examples.
         """
         for example in bad_examples:
-            self.bad_examples[ActionClass(example['pred_severity']).name]['count'] += 1
-            examples = self.bad_examples[ActionClass(example['pred_severity']).name]['examples']
+            self.bad_examples[ActionClass(example['pred_type']).name]['count'] += 1
+            examples = self.bad_examples[ActionClass(example['pred_type']).name]['examples']
             examples.append(example['meta_data'])
-            self.bad_examples[ActionClass(example['pred_severity']).name]['examples'] = list(set(examples))
-            self.bad_examples[ActionClass(example['pred_severity']).name]['avg_score'] += example['score'] / self.bad_examples[ActionClass(example['pred_severity']).name]['count']
-            self.bad_examples[ActionClass(example['pred_severity']).name]['true_class'][ActionClass(example['true_severity']).name] += 1
+            self.bad_examples[ActionClass(example['pred_type']).name]['examples'] = list(set(examples))
+            self.bad_examples[ActionClass(example['pred_type']).name]['avg_score'] += example['score'] / self.bad_examples[ActionClass(example['pred_type']).name]['count']
+            self.bad_examples[ActionClass(example['pred_type']).name]['true_class'][ActionClass(example['true_class']).name] += 1
         
     def update_custom_stats(self, stats):
         """
