@@ -28,19 +28,19 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 2
+NUM_GPUS: 1
 
 
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 3
+  BATCH_SIZE: 4
   ACCUMULATE_EVERY: 16 # To simulate larger batch on limited GPU memory, must be divisor of BATCH_SIZE or empty to disable
   MAX_BAD_EXAMPLES: 20
   BAD_EXAMPLE_THRESHOLD: 5
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
-  EVAL_PERIOD: 0                   # Disable intermediate evals for now
+  EVAL_PERIOD: 4                   # Disable intermediate evals for now
   NUM_FOLDS: 1
   AUTO_RESUME: true
   CHECKPOINT_PERIOD: 2
@@ -63,6 +63,6 @@ TEST:
   AUTOMATIC_MULTI_SCALE_TEST: true
 
 WANDB:
-  SYNC_ENABLE: true
+  SYNC_ENABLE: false
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"

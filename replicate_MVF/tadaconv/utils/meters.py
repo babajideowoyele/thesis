@@ -605,7 +605,7 @@ class TrainMeter(object):
             examples.append(example['meta_data'])
             self.bad_examples[ActionClass(example['pred_type']).name]['examples'] = list(set(examples))
             self.bad_examples[ActionClass(example['pred_type']).name]['avg_score'] += example['score'] / self.bad_examples[ActionClass(example['pred_type']).name]['count']
-            self.bad_examples[ActionClass(example['pred_type']).name]['true_class'][ActionClass(example['true_class']).name] += 1
+            self.bad_examples[ActionClass(example['pred_type']).name]['true_type'][ActionClass(example['true_type']).name] += 1
         
     def update_custom_stats(self, stats):
         """

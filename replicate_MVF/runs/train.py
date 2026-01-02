@@ -9,6 +9,7 @@ import os
 import torch.nn as nn
 import wandb
 
+from runs.evaluate import test_model
 import tadaconv.models.utils.losses as losses
 import tadaconv.models.utils.optimizer as optim
 import tadaconv.utils.checkpoint as cu
@@ -19,7 +20,7 @@ import tadaconv.utils.logging as logging
 import tadaconv.utils.metrics as metrics
 import tadaconv.utils.misc as misc
 import tadaconv.utils.bucket as bu
-from tadaconv.utils.meters import TrainMeter, ValMeter
+from tadaconv.utils.meters import TestMeter, TrainMeter, ValMeter
 
 from tadaconv.models.base.builder import build_model
 from tadaconv.datasets.base.builder import build_loader, shuffle_dataset
@@ -350,11 +351,14 @@ def train(rank, cfg, world_size=1):
 
     # Create the video train and val loaders.
     train_loader = build_loader(cfg, "train")
+    # Create the video train and val loaders.
     val_loader = build_loader(cfg, "val") if cfg.TRAIN.EVAL_PERIOD != 0 else None
 
     # Create meters.
+    val_meter = TestMeter(len(val_loader), wandb=wandb_run) if val_loader is not None else None
+
+    # Create meters.
     train_meter = TrainMeter(len(train_loader), cfg, wandb=wandb_run)
-    val_meter = ValMeter(len(val_loader), cfg, wandb=wandb_run) if val_loader is not None else None
 
     if cfg.AUGMENTATION.MIXUP.ENABLE or cfg.AUGMENTATION.CUTMIX.ENABLE:
         logger.info("Enabling mixup/cutmix.")
@@ -388,11 +392,8 @@ def train(rank, cfg, world_size=1):
             cu.save_checkpoint(cfg.OUTPUT_DIR, model, model_ema, optimizer, cur_epoch+cfg.TRAIN.NUM_FOLDS-1, cfg, model_bucket)
         # Evaluate the model on validation set.
         if misc.is_eval_epoch(cfg, cur_epoch+cfg.TRAIN.NUM_FOLDS-1):
-            val_meter.set_model_ema_enabled(False)
-            eval_epoch(val_loader, model, val_meter, cur_epoch+cfg.TRAIN.NUM_FOLDS-1, cfg)
-            if model_ema is not None:
-                val_meter.set_model_ema_enabled(True)
-                eval_epoch(val_loader, model_ema.module, val_meter, cur_epoch+cfg.TRAIN.NUM_FOLDS-1, cfg)
+            assert val_loader is not None and val_meter is not None
+            test_model(val_loader, model, val_meter, cfg)
 
     if model_bucket is not None:
         filename = os.path.join(cfg.OUTPUT_DIR, cfg.TRAIN.LOG_FILE)
