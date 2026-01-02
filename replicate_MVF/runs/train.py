@@ -344,6 +344,8 @@ def train(rank, cfg, world_size=1):
             # Track hyperparameters and run metadata.
             config=cfg.cfg_dict,
         )
+        log_freq = cfg.WANDB.LOG_FREQUENCY if cfg.WANDB.LOG_FREQUENCY > 0 else 500
+        wandb.watch(model, log="all", log_freq=log_freq)
     else:
         wandb_run = None
 

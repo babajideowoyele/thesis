@@ -75,7 +75,9 @@ WANDB:
   PROJECT_NAME: "Thesis-Goldenbaum"
 
 HUGGINGFACE:
-  LOAD: true
+  LOAD: false
   REPO: "KGolden/mvf_checkpoints"
   CACHE_DIR: "./hf_cache"
   LOAD_NAME: "head_finetuned"
+
+OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/temp/checkpoints"
