@@ -60,17 +60,17 @@ def build_loader(cfg, split):
     assert split in ["train", "val", "test", "submission"]
     if split in ["train"]:
         dataset_name = cfg.TRAIN.DATASET
-        batch_size = int(cfg.TRAIN.BATCH_SIZE / max(1, cfg.NUM_GPUS))
+        batch_size = int(cfg.TRAIN.BATCH_SIZE)
         shuffle = True
         drop_last = True
     elif split in ["val"]:
         dataset_name = cfg.TEST.DATASET
-        batch_size = int(cfg.TEST.BATCH_SIZE / max(1, cfg.NUM_GPUS))
+        batch_size = int(cfg.TEST.BATCH_SIZE)
         shuffle = False
         drop_last = False
     elif split in ["test", "submission"]:
         dataset_name = cfg.TEST.DATASET
-        batch_size = int(cfg.TEST.BATCH_SIZE / max(1, cfg.NUM_GPUS))
+        batch_size = int(cfg.TEST.BATCH_SIZE)
         shuffle = False
         drop_last = False
 
