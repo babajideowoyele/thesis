@@ -171,7 +171,7 @@ class Config(object):
                 else:
                     cfg_base[k] = v
             else:
-                if "BASE" not in k or preserve_base:
+                if "_BASE" not in k or preserve_base:
                     cfg_base[k] = v
         return cfg_base
 
