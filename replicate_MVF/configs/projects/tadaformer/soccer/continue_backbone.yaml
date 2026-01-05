@@ -5,18 +5,18 @@ _BASE_MODEL: ../../../pool/backbone/soccer/general_soccer.yaml
 DATA:
   NUM_INPUT_FRAMES: 16
   TAKE_NUM_FRAMES: 16
+  NUM_VIEWS: 2
 
-
-OPTIMIZER:
-  BASE_LR: 2e-4
-  ADJUST_LR: true
-  COSINE_END_LR: 2e-6
-  COSINE_AFTER_WARMUP: true
-  MAX_EPOCH: 24
-  WARMUP_EPOCHS: 2
-  WARMUP_START_LR: 1e-5
+DATA_LOADER:
+  NUM_WORKERS: 16
+  PIN_MEMORY: false
+  ENABLE_MULTI_THREAD_DECODE: true
+  
 
 AUGMENTATION: 
+  IS_SPLIT: false
+  SSV2_FLIP: true
+  RATIO: [0.75, 1.333]
   MIXUP: 
     ENABLE: false
   CUTMIX: 
@@ -29,22 +29,21 @@ AUGMENTATION:
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
 NUM_GPUS: 2
-DATA_LOADER:
-  NUM_WORKERS: 16
-  PIN_MEMORY: false
 
 TRAIN:
   ENABLE: true
   DATASET: MVFoul                    # !!@1
-  BATCH_SIZE: 2
-
+  BATCH_SIZE: 3
+  ACCUMULATE_EVERY: 16 # To simulate larger batch on limited GPU memory, must be divisor of BATCH_SIZE or empty to disable
+  MAX_BAD_EXAMPLES: 20
+  BAD_EXAMPLE_THRESHOLD: 5
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
-  EVAL_PERIOD: 4
+  EVAL_PERIOD: 4                 # Disable intermediate evals for now
   NUM_FOLDS: 1
-  AUTO_RESUME: true
-  CHECKPOINT_PERIOD: 2
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_backbone_no_temp/checkpoint_epoch_00004.pyth"    # !!@2
+  AUTO_RESUME: false
+  CHECKPOINT_PERIOD: 4
+  CHECKPOINT_FILE_PATH: "ckpts/checkpoints_backbone_no_temp/checkpoints/checkpoint_epoch_00002.pyth"    # !!@2
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
@@ -53,12 +52,11 @@ TRAIN:
 TEST:
   ENABLE: true                     # !!@3
   DATASET: Mvfoul                         # !!@3
-  BATCH_SIZE: 8
+  BATCH_SIZE: 16
   NUM_SPATIAL_CROPS: 1
   SPATIAL_CROPS: cc
   NUM_ENSEMBLE_VIEWS: 1
   LOG_FILE: val.log
-  CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"
   CHECKPOINT_TYPE: pytorch
   AUTOMATIC_MULTI_SCALE_TEST: true
 
@@ -66,3 +64,4 @@ WANDB:
   SYNC_ENABLE: true
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
+  LOG_FREQUENCY: 200
