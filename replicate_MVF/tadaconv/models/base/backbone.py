@@ -5,6 +5,8 @@
 
 import torch
 import torch.nn as nn
+from tadaconv.models.base.transformer import Attention
+from tadaconv.models.module_zoo.preaggreagate.preaggregate import AttentionPooling
 from tadaconv.utils.registry import Registry
 from tadaconv.models.base.base_blocks import (
     Base3DResStage, STEM_REGISTRY, BRANCH_REGISTRY, InceptionBaseConv3D, PREAGGREGATE_REGISTRY
@@ -250,7 +252,7 @@ class VisionTransformer(nn.Module):
             self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get("Identity")(cfg)
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
-        self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
+        self.positional_embedding = nn.Parameter(scale * torch.randn((self.num_patches_per_axis) ** 2 + 1, width))
         self.ln_pre = nn.LayerNorm(width)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
@@ -275,6 +277,16 @@ class VisionTransformer(nn.Module):
             # means forwarding a batch of videos
             b, c, t, h, w = x.shape
             # x = x.permute(0,2,1,3,4).reshape(b*t, c, h, w)
+            x = self.forward_wo_head(x)
+
+            x = self.ln_post(x[:,0,:].reshape(b,-1,x.shape[-1]).mean(1))
+
+            if self.proj is not None:
+                x = x @ self.proj
+        elif len(x.shape) == 6:
+            # means forwarding multiple clips per video
+            b, v, c, t, h, w = x.shape
+            x = x.permute(0, 2, 1, 3, 4, 5).reshape(b, c, v*t, h, w).permute(0,2,1,3,4)
             x = self.forward_wo_head(x)
 
             x = self.ln_post(x[:,0,:].reshape(b,-1,x.shape[-1]).mean(1))
@@ -321,7 +333,7 @@ class FOULVisionTransformer(VisionTransformer):
         else:
             video = x
 
-        if mask is None:
+        if mask is None or isinstance(self.preaggregate, AttentionPooling):
             return super().forward(video)
 
         # ensure mask is a boolean tensor on the same device as video
@@ -329,7 +341,7 @@ class FOULVisionTransformer(VisionTransformer):
         mask_bool = mask.bool()
 
         # mask shape should be (B, V). Select all (B,V) entries where mask is True.
-        # This will flatten the first two dims and produce a tensor of shape (B'*V', ...)
+        # This will flatten the first two dims and produce a tensor of shape (B*V', ...)
         video = video[mask_bool]
 
         # forward the selected videos through the parent VisionTransformer

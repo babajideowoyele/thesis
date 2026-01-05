@@ -36,6 +36,27 @@ class FeedForward(nn.Module):
 
 class Attention(nn.Module):
     """
+    Initialize the Attention module.
+    Args:
+        dim (int): The dimensionality of the input embeddings. This is the feature size
+            of each token in the input sequence.
+        num_heads (int, optional): Number of attention heads. The input dimension (dim) must be
+            divisible by num_heads. Default is 12.
+        attn_dropout (float, optional): Dropout probability applied to attention weights.
+            Default is 0.0 (no dropout).
+        ff_dropout (float, optional): Dropout probability applied to the output projection.
+            Default is 0.0 (no dropout).
+        einops_from (str, optional): Source einops rearrangement pattern for partial 
+            (spatial or temporal) attention. If provided along with einops_to, enables
+            partial attention mode. Default is None (full attention).
+        einops_to (str, optional): Target einops rearrangement pattern for partial
+            (spatial or temporal) attention. If provided along with einops_from, enables
+            partial attention mode. Default is None (full attention).
+        **einops_dims: Additional keyword arguments containing dimension variables used
+            in the einops rearrangement patterns (e.g., t=num_frames, h=height, w=width).
+            Only used when both einops_from and einops_to are specified.
+    
+
     Self-attention module. 
     Currently supports both full self-attention on all the input tokens,
     or only-spatial/only-temporal self-attention. 
@@ -217,6 +238,7 @@ class TimesformerLayer(nn.Module):
         x = x + self.drop_path(self.attn(self.norm(x)))
         x = x + self.drop_path(self.ffn(self.norm_ffn(x)))
         return x
+
 
 @BACKBONE_REGISTRY.register()
 class Transformer(nn.Module):
