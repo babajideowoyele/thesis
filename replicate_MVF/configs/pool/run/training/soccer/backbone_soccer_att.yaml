@@ -1,0 +1,38 @@
+DATA:
+  NUM_INPUT_FRAMES: 16
+  TAKE_NUM_FRAMES: 64
+  NUM_VIEWS: 4
+OPTIMIZER:
+  BASE_LR: 2e-4
+  COSINE_END_LR: 2e-6
+  MAX_EPOCH: 36
+  MOMENTUM: 0.9
+  WARMUP_EPOCHS: 2
+  WARMUP_START_LR: 1e-5
+  OPTIM_METHOD: adamw
+  WEIGHT_DECAY: 1e-3
+  DAMPENING: 0.0
+  LAYER_WISE_LR_DECAY: 0.00
+BN:
+  FREEZE: false
+  WEIGHT_DECAY: 0.05
+  EPS: 1e-3
+
+VIDEO:
+  BACKBONE:
+    PREAGGREGATE:
+        ENABLE: true
+        NAME: AttentionPooling
+
+SHARD_ID: 0
+NUM_SHARDS: 1
+RANDOM_SEED: 0
+OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att"
+HUGGINGFACE:
+  LOAD: false
+  REPO: "KGolden/mvf_checkpoints"
+  SAVE: false
+  CACHE_DIR: "./hf_cache"
+  SAVE_NAME: "backbone_temp"
+
+
