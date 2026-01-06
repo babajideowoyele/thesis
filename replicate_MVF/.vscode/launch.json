@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "--cfg configs/projects/tadaformer/soccer/continue_temp_pool_backbone.yaml"
+            "args": "--cfg configs/projects/tadaformer/soccer/continue_att_backbone.yaml"
         },
         {
             "name": "Python Debugger: Test",

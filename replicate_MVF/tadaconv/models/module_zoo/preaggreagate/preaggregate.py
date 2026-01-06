@@ -1,9 +1,6 @@
-from httpx import patch
 import torch
 from tadaconv.models.base.base_blocks import PREAGGREGATE_REGISTRY
 import torch.nn as nn
-
-from tadaconv.models.base.transformer import Transformer
 
 @PREAGGREGATE_REGISTRY.register()
 class Identity(nn.Module):
@@ -40,12 +37,14 @@ class AttentionPooling(nn.Module):
         self.num_heads = cfg.VIDEO.BACKBONE.NUM_HEADS
         dim_head = self.width // self.num_heads
         self.scale = dim_head ** -0.5
+        frame_equivalance = 8
 
         input_resolution    = cfg.VIDEO.BACKBONE.INPUT_RES
         patch_size          = cfg.VIDEO.BACKBONE.PATCH_SIZE
 
         self.patch_number = (input_resolution // patch_size) ** 2
-        self.carry_patches = self.patch_number * 8
+        self.carry_patches = self.patch_number * frame_equivalance
+        self.latents = nn.Parameter(torch.randn(1, frame_equivalance, self.width))
 
         self.MLP         = nn.Linear(self.width, self.carry_patches)
         self.T = cfg.DATA.NUM_INPUT_FRAMES
@@ -54,26 +53,13 @@ class AttentionPooling(nn.Module):
     def forward(self, x):
         assert x.dim() == 5, "Input tensor must be 5D (N, T*V, H, W, C)"
         N, T, H, W, C = x.shape
+        residual = x.mean(dim=1)
 
         assert C == self.width, f"Input tensor channel dimension must be {self.width} but has size {x.size()}"
         x = x.reshape(N, -1, C)
         x = torch.softmax(self.MLP(x), dim=1).transpose(-1, -2) @ x
 
-        return x.reshape(N, -1, H, W, C)
-
-@PREAGGREGATE_REGISTRY.register()
-class TransformerPooling(nn.Module):
-    def __init__(self, cfg):
-        super(TransformerPooling, self).__init__()
-        self.attention = Transformer(
-            ...
-        )
-        self.T = cfg.DATA.NUM_INPUT_FRAMES
-        self.F = cfg.DATA.TAKE_NUM_FRAMES
-
-    def forward(self, x):
-        ...
-        
+        return x.reshape(N, -1, H, W, C) + residual.unsqueeze(1)
         
         
         

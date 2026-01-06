@@ -28,7 +28,7 @@ def get_num_layer_for_vit(name, num_layers):
     num_max_layer = num_layers + 2
     if "text" in name:
         return num_max_layer - 1
-    elif "embd" in name or "cls_token" in name or "embedding" in name or "logit_scale" in name:
+    elif "embd" in name or "cls_token" in name or "embedding" in name or "logit_scale" in name or "aggregate" in name:
         return 0
     elif name.split('.')[id_indicator_loc] == 'backbone':
         if name.split('.')[id_indicator_loc+1] == "conv1" or name.split('.')[id_indicator_loc+1] == "ln_pre" :

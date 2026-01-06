@@ -40,33 +40,42 @@ class FOULHead(BaseHeadx2):
             x (Tensor): classification predictions.
             logits (Tensor): global average pooled features.
         """
-        mask_bool = mask.bool()
-        mask_filtered = mask[mask_bool]
-        assert len(x.shape) == 3, "Input tensor must be 3D"
-
-        x_reshaped = x[mask_bool]
-        #Not applicable: x_pooled = self.global_avg_pool(x_reshaped)  # (B*V, C, 1, 1, 1)
-
-        emb = self.emb(mask_filtered - 1)
-
-        assert (
-            emb.shape == x_reshaped.shape
-        ), f"emb shape {emb.shape} and out shape {x_reshaped.shape} do not match"
-
-        out = x_reshaped + emb
-
-        B, V = mask.shape
-        T = out.shape[1:]
-        out_mask = torch.full((B, V) + T, float('-inf'), dtype=out.dtype, device=out.device)
-        out_mask[mask_bool] = out
-        out, idx = torch.max(out_mask, dim=1)
-
-
-        if hasattr(self, "dropout"):
-            out1 = self.dropout(out)
+        if mask is None:
+            if hasattr(self, "dropout"):
+                out1 = self.dropout(x)
+            else:
+                out1 = x
+            out2 = out1
+            out = out1
         else:
-            out1 = out
-        out2 = out1
+
+            mask_bool = mask.bool()
+            mask_filtered = mask[mask_bool]
+            assert len(x.shape) == 3, "Input tensor must be 3D"
+
+            x_reshaped = x[mask_bool]
+            #Not applicable: x_pooled = self.global_avg_pool(x_reshaped)  # (B*V, C, 1, 1, 1)
+
+            emb = self.emb(mask_filtered - 1)
+
+            assert (
+                emb.shape == x_reshaped.shape
+            ), f"emb shape {emb.shape} and out shape {x_reshaped.shape} do not match"
+
+            out = x_reshaped + emb
+
+            B, V = mask.shape
+            T = out.shape[1:]
+            out_mask = torch.full((B, V) + T, float('-inf'), dtype=out.dtype, device=out.device)
+            out_mask[mask_bool] = out
+            out, idx = torch.max(out_mask, dim=1)
+
+
+            if hasattr(self, "dropout"):
+                out1 = self.dropout(out)
+            else:
+                out1 = out
+            out2 = out1
 
         
 

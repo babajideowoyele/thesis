@@ -5,7 +5,6 @@
 
 import torch
 import torch.nn as nn
-from tadaconv.models.base.transformer import Attention
 from tadaconv.models.module_zoo.preaggreagate.preaggregate import AttentionPooling
 from tadaconv.utils.registry import Registry
 from tadaconv.models.base.base_blocks import (
@@ -286,7 +285,7 @@ class VisionTransformer(nn.Module):
         elif len(x.shape) == 6:
             # means forwarding multiple clips per video
             b, v, c, t, h, w = x.shape
-            x = x.permute(0, 2, 1, 3, 4, 5).reshape(b, c, v*t, h, w).permute(0,2,1,3,4)
+            x = x.permute(0, 2, 1, 3, 4, 5).reshape(b, c, v*t, h, w)
             x = self.forward_wo_head(x)
 
             x = self.ln_post(x[:,0,:].reshape(b,-1,x.shape[-1]).mean(1))
@@ -334,7 +333,7 @@ class FOULVisionTransformer(VisionTransformer):
             video = x
 
         if mask is None or isinstance(self.preaggregate, AttentionPooling):
-            return super().forward(video)
+            return super().forward(video), None
 
         # ensure mask is a boolean tensor on the same device as video
         mask = mask.to(device=video.device)
