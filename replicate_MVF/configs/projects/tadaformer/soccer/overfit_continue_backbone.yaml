@@ -1,20 +1,21 @@
-_BASE_RUN: ../../../pool/run/training/soccer/backbone_soccer_temp.yaml
+_BASE_RUN: ../../../pool/run/training/soccer/finetune_soccer.yaml
 _BASE_MODEL: ../../../pool/backbone/soccer/general_soccer.yaml
 
 
 DATA:
   NUM_INPUT_FRAMES: 16
-  TAKE_NUM_FRAMES: 64
+  TAKE_NUM_FRAMES: 16
   NUM_VIEWS: 2
   OVERFIT:
     ENABLE: true
     NUM_SAMPLES: 3
-  
+
+
 DATA_LOADER:
   NUM_WORKERS: 16
   PIN_MEMORY: false
   ENABLE_MULTI_THREAD_DECODE: true
-
+  
 
 AUGMENTATION: 
   IS_SPLIT: false
@@ -31,8 +32,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 2
-
+NUM_GPUS: 1
 
 TRAIN:
   ENABLE: true
@@ -47,11 +47,12 @@ TRAIN:
   NUM_FOLDS: 1
   AUTO_RESUME: false
   CHECKPOINT_PERIOD: 4
-  CHECKPOINT_FILE_PATH: "ckpts/temp/checkpoints/checkpoint_epoch_00002.pyth"    # !!@2
+  CHECKPOINT_FILE_PATH: "ckpts/checkpoints_backbone_no_temp/checkpoints/checkpoint_epoch_00002.pyth"    # !!@2
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
   ONLY_LINEAR: false
+
 
 TEST:
   ENABLE: true                     # !!@3

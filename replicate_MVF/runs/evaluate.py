@@ -53,10 +53,13 @@ def test_model(test_loader, model, test_meter: TestMeter, cfg):
         if misc.get_num_gpus(cfg) > 1:
             for k in preds.keys():
                 bal_acc[k] = du.all_reduce([bal_acc[k]])[0]
-            acc = du.all_reduce([acc])[0]
+                acc[k] = du.all_reduce([acc[k]])[0]
+            acc = du.all_reduce([acc["overall"]])[0]
 
-        bal_acc["joint"] = torch.mean(torch.stack([bal_acc[k] for k in bal_acc.keys()]))
-        bal_acc["accuracy"] = acc
+        bal_acc["joint_acc"] = torch.mean(torch.stack([bal_acc[k] for k in bal_acc.keys()]))
+        for k in acc.keys():
+            bal_acc["acc_"+k] = acc[k]
+
 
         test_meter.iter_toc()
         # Update and log stats.

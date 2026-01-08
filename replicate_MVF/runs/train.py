@@ -55,6 +55,7 @@ def train_epoch(
             num_norms += 1
             if module.training:
                 norm_train = True
+                break
     logger.info(f"Norm training: {norm_train if num_norms >0 else 'No norm'}")
     # Separately examine the training status of the batch norm 1D modules,
     # as the batch norm 1D is usually used in heads, which needs to be trained
@@ -66,6 +67,7 @@ def train_epoch(
             num_norms += 1
             if module.training:
                 norm_train = True
+                break
     logger.info(f"Norm 1d training: {norm_train if num_norms >0 else 'No norm'}")
     train_meter.iter_tic()
     data_size = len(train_loader)
@@ -108,6 +110,7 @@ def train_epoch(
         
         if do_step:
             optimizer.step()
+            logger.info(f"Epoch {cur_epoch} Iteration {cur_iter}: performed optimizer step.")
             optimizer.zero_grad()
 
             if model_ema is not None:

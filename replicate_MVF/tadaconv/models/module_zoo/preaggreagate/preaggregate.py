@@ -44,7 +44,6 @@ class AttentionPooling(nn.Module):
 
         self.patch_number = (input_resolution // patch_size) ** 2
         self.carry_patches = self.patch_number * frame_equivalance
-        self.latents = nn.Parameter(torch.randn(1, frame_equivalance, self.width))
 
         self.MLP         = nn.Linear(self.width, self.carry_patches)
         self.T = cfg.DATA.NUM_INPUT_FRAMES
@@ -61,7 +60,45 @@ class AttentionPooling(nn.Module):
 
         return x.reshape(N, -1, H, W, C) + residual.unsqueeze(1)
         
-        
+@PREAGGREGATE_REGISTRY.register()
+class TransformerPooling(nn.Module):
+    def __init__(self, cfg):
+        super(TransformerPooling, self).__init__()
+        self.width = cfg.VIDEO.BACKBONE.NUM_FEATURES
+        self.num_heads = cfg.VIDEO.BACKBONE.NUM_HEADS
+        dim_head = self.width // self.num_heads
+        self.scale = dim_head ** -0.5
+        frame_equivalance = 8
+
+        input_resolution    = cfg.VIDEO.BACKBONE.INPUT_RES
+        patch_size          = cfg.VIDEO.BACKBONE.PATCH_SIZE
+
+        self.patch_number = (input_resolution // patch_size) ** 2
+        self.carry_patches = self.patch_number * frame_equivalance
+
+        self.to_qkv = nn.Linear(self.width, self.width * 3, bias=False)
+        self.to_out = nn.Linear(self.width, self.width)
+
+        self.T = cfg.DATA.NUM_INPUT_FRAMES
+        self.F = cfg.DATA.TAKE_NUM_FRAMES
+
+    def forward(self, x):
+        assert x.dim() == 5, "Input tensor must be 5D (N, T*V, H, W, C)"
+        N, T, H, W, C = x.shape
+        residual = x.mean(dim=1)
+
+        assert C == self.width, f"Input tensor channel dimension must be {self.width} but has size {x.size()}"
+        x = x.reshape(N, -1, C)
+        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: t.reshape(N, -1, self.num_heads, C // self.num_heads).transpose(1, 2), qkv)
+
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        attn = dots.softmax(dim=-1)
+
+        out = torch.matmul(attn, v).transpose(1, 2).reshape(N, -1, C)
+        out = self.to_out(out)
+
+        return out.reshape(N, -1, H, W, C) + residual.unsqueeze(1) 
         
 
         

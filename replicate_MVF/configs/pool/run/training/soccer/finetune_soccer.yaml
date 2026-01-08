@@ -3,12 +3,12 @@ DATA:
   TAKE_NUM_FRAMES: 16
   NUM_VIEWS: 2
 OPTIMIZER:
-  BASE_LR: 2e-4
+  BASE_LR: 2e-3
   COSINE_END_LR: 2e-6
   MAX_EPOCH: 36
   MOMENTUM: 0.9
   WARMUP_EPOCHS: 2
-  WARMUP_START_LR: 1e-5
+  WARMUP_START_LR: 5e-4
   OPTIM_METHOD: adamw
   WEIGHT_DECAY: 1e-3
   DAMPENING: 0.0
@@ -32,7 +32,7 @@ OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/checkpoints_b
 HUGGINGFACE:
   LOAD: false
   REPO: "KGolden/mvf_checkpoints"
-  SAVE: true
+  SAVE: false
   CACHE_DIR: "./hf_cache"
   SAVE_NAME: "backbone_no_temp"
 

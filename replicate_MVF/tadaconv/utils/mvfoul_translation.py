@@ -20,6 +20,10 @@ class ActionClass(enum.IntEnum):
             return cls.noaction
         return cls[action_str]
 
+    @staticmethod
+    def get_classes():
+        return list(ActionClass)
+
 
 class MVFoulAnnotation(pydantic.BaseModel):
     Offence: str

@@ -117,7 +117,7 @@ def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Te
             class_correct = (pred_classes[class_mask] == label[class_mask]).sum()
             class_acc = class_correct.float() / class_mask.sum().float()
             per_class_acc.append(class_acc)
-        balanced_acc[key] = (torch.stack(per_class_acc).mean().to(dev) * 100.0)
+        balanced_acc["bal_acc_" + key] = (torch.stack(per_class_acc).mean().to(dev) * 100.0)
     return balanced_acc
 
 def accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks: dict[str, int]) -> torch.Tensor:
@@ -129,6 +129,7 @@ def accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks
     """
     total_correct = 0
     total_samples = 0
+    acc = {}
     for key, prediction in preds.items():
         assert len(prediction.size()) == 2, "Predictions should be of shape N x ClassNum."
         _, pred_classes = torch.max(prediction, dim=1)
@@ -136,9 +137,10 @@ def accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks
         correct = (pred_classes == label).sum()
         total_correct += correct.item()
         total_samples += label.size(0)
-    acc = torch.Tensor([total_correct / total_samples]) * 100.0
+        acc[key] = (correct.float() / label.size(0)) * 100.0
+    acc["overall"] = torch.Tensor([total_correct / total_samples]) * 100.0
     dev = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
-    acc = acc.to(dev)
+    acc = {k: v.to(dev) if isinstance(v, torch.Tensor) else v for k, v in acc.items()}
     return acc
 
 

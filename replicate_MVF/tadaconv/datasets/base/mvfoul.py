@@ -13,7 +13,7 @@ from tadaconv.datasets.utils.random_erasing import RandomErasing
 from tadaconv.datasets.utils.transformations import ColorJitter, KineticsResizedCrop
 import tadaconv.utils.logging as logging
 from tadaconv.datasets.base.builder import DATASET_REGISTRY
-from tadaconv.utils.mvfoul_translation import translate_annotation
+from tadaconv.utils.mvfoul_translation import translate_annotation, ActionClass
 
 logger = logging.get_logger(__name__)
 
@@ -27,6 +27,8 @@ class Mvfoul(torch.utils.data.Dataset):
         self.split = split
         self.data_root_dir  = cfg.DATA.DATA_ROOT_DIR
         self.take_frames = self.get_num_frames(cfg)
+        self.overfit: bool = cfg.DATA.OVERFIT.ENABLE
+        self.num_overfit_samples: int = cfg.DATA.OVERFIT.NUM_SAMPLES
         self._construct_dataset()
         self._config_transform()
 
@@ -56,25 +58,51 @@ class Mvfoul(torch.utils.data.Dataset):
         assert os.path.exists(path), "{} does not exist".format(path)
         self.data_root_dir = path
 
-        entries = sorted(os.listdir(self.data_root_dir))
+        entries_unordered = os.listdir(self.data_root_dir)
+
+        entries: list[str] = ["action_" + str(i) for i in range(len(entries_unordered)) if "action_" + str(i) in entries_unordered]
 
         with open(os.path.join(self.data_root_dir, "annotations.json"), "r") as f:
-            self.annotations = json.load(f)["Actions"]
+            annotations = json.load(f)
+            self.num_annotations = annotations["Number of actions"] or len(annotations["Actions"])
+            self.annotations = annotations["Actions"]
         
-        self.labels: list = self._process_labels(self.annotations)
+        self.labels = [None] * self.num_annotations
+        
+        self._process_labels(self.annotations)
+
+        if self.overfit:
+            list_classes = {cls: 0 for cls in ActionClass.get_classes()}
+            self.overfit_dirs = []
+            self.overfit_labels = []
+            for idx, label in enumerate(self.labels):
+                action_class = label["type"]
+                action_enum = ActionClass(action_class)
+                if list_classes[action_enum] < self.num_overfit_samples:
+                    self.overfit_dirs.append(entries[idx])
+                    self.overfit_labels.append(label)
+                    list_classes[action_enum] += 1
+
 
         self.dirs = [e for e in entries if os.path.isdir(os.path.join(self.data_root_dir, e))]
         
         self.meta_data = {e: len(os.listdir(os.path.join(self.data_root_dir, e))) for e in self.dirs}
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.labels) if not self.overfit else len(self.overfit_labels) 
 
     def __getitem__(self, index):
-        dir_name = self.dirs[index]
+        if not self.overfit:
+            dir_name = self.dirs[index]
+            label = self.labels[index]
+        else:
+            idx = index % len(self.overfit_labels)
+            dir_name = self.overfit_dirs[idx]
+            label = self.overfit_labels[idx]
         feature = self._read_videos_from_dir(os.path.join(self.data_root_dir, dir_name))
-        return feature[0], feature[1], {'supervised': self.labels[index],
+        return feature[0], feature[1], {'supervised': label,
                                         'meta_data': {"dir_name": dir_name},}
+
 
     def _read_videos_from_dir(self, dir_path):
         video_files = sorted(os.listdir(dir_path))
@@ -171,11 +199,9 @@ class Mvfoul(torch.utils.data.Dataset):
         return indices
     
     def _process_labels(self, annotations):
-        labels = []
         for idx, annotation in annotations.items():
             label = translate_annotation(annotation)
-            labels.append(label)
-        return labels
+            self.labels[int(idx)] = label
     
 
     def _config_transform(self):

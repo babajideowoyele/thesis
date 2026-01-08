@@ -539,10 +539,7 @@ class TrainMeter(object):
         # wrong - find trends to missclassify
         self.bad_examples = {
             ActionClass(k).name: {
-                "count": 0, 'examples': [], "avg_score": 0.0,
-                "true_class": {
-                    ActionClass(j).name: 0 for j in ActionClass._value2member_map_.keys()
-                    }
+                "count": 0,
             } for k in ActionClass._value2member_map_.keys()}
         # Current minibatch errors (smoothed over a window).
         # Number of misclassified examples.
@@ -601,11 +598,6 @@ class TrainMeter(object):
         """
         for example in bad_examples:
             self.bad_examples[ActionClass(example['pred_type']).name]['count'] += 1
-            examples = self.bad_examples[ActionClass(example['pred_type']).name]['examples']
-            examples.append(example['meta_data'])
-            self.bad_examples[ActionClass(example['pred_type']).name]['examples'] = list(set(examples))
-            self.bad_examples[ActionClass(example['pred_type']).name]['avg_score'] += example['score'] / self.bad_examples[ActionClass(example['pred_type']).name]['count']
-            self.bad_examples[ActionClass(example['pred_type']).name]['true_class'][ActionClass(example['true_type']).name] += 1
         
     def update_custom_stats(self, stats):
         """
