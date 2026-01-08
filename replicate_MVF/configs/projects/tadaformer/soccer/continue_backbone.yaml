@@ -6,6 +6,9 @@ DATA:
   NUM_INPUT_FRAMES: 16
   TAKE_NUM_FRAMES: 16
   NUM_VIEWS: 2
+  OVERFIT:
+    ENABLE: true
+    NUM_SAMPLES: 3
 
 DATA_LOADER:
   NUM_WORKERS: 16
@@ -28,7 +31,7 @@ AUGMENTATION:
     ENABLE: true
     BEFORE_CROP: true
     TYPE: rand-m9-n4-mstd0.5-inc1
-NUM_GPUS: 2
+NUM_GPUS: 1
 
 TRAIN:
   ENABLE: true
@@ -61,7 +64,7 @@ TEST:
   AUTOMATIC_MULTI_SCALE_TEST: true
 
 WANDB:
-  SYNC_ENABLE: true
+  SYNC_ENABLE: false
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
   LOG_FREQUENCY: 200

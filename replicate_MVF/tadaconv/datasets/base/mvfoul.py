@@ -99,6 +99,7 @@ class Mvfoul(torch.utils.data.Dataset):
             idx = index % len(self.overfit_labels)
             dir_name = self.overfit_dirs[idx]
             label = self.overfit_labels[idx]
+        assert label == self.labels[int(dir_name.split("_")[1])]
         feature = self._read_videos_from_dir(os.path.join(self.data_root_dir, dir_name))
         return feature[0], feature[1], {'supervised': label,
                                         'meta_data': {"dir_name": dir_name},}
