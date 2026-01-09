@@ -138,7 +138,7 @@ def calculate_loss(cfg, preds, logits, labels, cur_epoch):
                 # TODO: Improve this terrible abomination.
                 loss = 0
                 for k, truth in labels_.items():
-                    if cfg.DATA.WEIGHTED_LOSS:
+                    if weighted_loss(cfg):
                         class_weight = cfg.cfg_dict["DATA"]["CLASS_WEIGHTS"].get(k.upper(), None)
                         class_weight = torch.tensor(class_weight, dtype=torch.float32).to(device)
                         loss_fun.weight = class_weight
@@ -150,6 +150,11 @@ def calculate_loss(cfg, preds, logits, labels, cur_epoch):
                 loss = loss_fun(preds, labels_)
 
     return loss, loss_in_parts, weight
+
+def weighted_loss(cfg):
+    if cfg.DATA.WEIGHTED_LOSS:
+        return True
+    return False
 
 @SSL_LOSSES.register()
 def Loss_MoSIX(cfg, preds, logits, labels, cur_epoch=0): # Camera Movement Spatial Transform

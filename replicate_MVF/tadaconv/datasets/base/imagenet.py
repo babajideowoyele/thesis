@@ -4,15 +4,13 @@
 """ ImageNet dataset. """
 
 import os
-import random
 import torch
-import torch.utils.data
 import tadaconv.utils.logging as logging
 
 import time
 
-from torchvision.transforms import Compose
-import torchvision.transforms._transforms_video as transforms
+from torchvision.transforms import Compose, v2
+import torchvision.transforms as transforms
 from tadaconv.datasets.utils.transformations import (
     ColorJitter, 
     AutoResizedCropVideo
@@ -89,11 +87,12 @@ class Imagenet(BaseVideoDataset):
         self.transform = None
         if self.split == 'train' and not self.cfg.PRETRAIN.ENABLE:
             std_transform_list = [
-                transforms.ToTensorVideo(),
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.ToDtype(torch.float32, scale=True),
                 transforms.RandomResizedCropVideo(
                     size=self.cfg.DATA.TRAIN_CROP_SIZE
                 ),
-                transforms.RandomHorizontalFlipVideo()
+                transforms.RandomHorizontalFlip()
             ]
             # Add color aug
             if self.cfg.AUGMENTATION.COLOR_AUG:
@@ -110,7 +109,7 @@ class Imagenet(BaseVideoDataset):
                         ),
                 )
             std_transform_list += [
-                transforms.NormalizeVideo(
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
                     inplace=True
@@ -127,9 +126,10 @@ class Imagenet(BaseVideoDataset):
                     mode="cc",
                 )
             std_transform_list = [
-                transforms.ToTensorVideo(),
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.ToDtype(torch.float32, scale=True),
                 self.resize_video,
-                transforms.NormalizeVideo(
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
                     inplace=True

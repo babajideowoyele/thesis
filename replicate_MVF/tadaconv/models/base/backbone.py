@@ -284,8 +284,8 @@ class VisionTransformer(nn.Module):
                 x = x @ self.proj
         elif len(x.shape) == 6:
             # means forwarding multiple clips per video
-            b, v, c, t, h, w = x.shape
-            x = x.permute(0, 2, 1, 3, 4, 5).reshape(b, c, v*t, h, w)
+            b, v, t, c, h, w = x.shape
+            x = x.reshape(b, v*t, c, h, w)
             x = self.forward_wo_head(x)
 
             x = self.ln_post(x[:,0,:].reshape(b,-1,x.shape[-1]).mean(1))
@@ -299,7 +299,7 @@ class VisionTransformer(nn.Module):
     
     def forward_wo_head(self, x: torch.Tensor):
 
-        x = self.conv1(x)  # shape = [*, width, grid, grid]
+        x = self.conv1(x.permute(0, 2, 1, 3, 4))  # shape = [*, width, grid, grid]
 
         x = x.permute(0,2,3,4,1)  # NCTHW -> NTHWC
         x = self.preaggregate(x)

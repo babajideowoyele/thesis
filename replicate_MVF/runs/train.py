@@ -355,9 +355,9 @@ def train(rank, cfg, world_size=1):
 
 
     # Create the video train and val loaders.
-    train_loader = build_loader(cfg, "train")
+    train_loader = build_loader(cfg, "train", rank, world_size)
     # Create the video train and val loaders.
-    val_loader = build_loader(cfg, "val") if cfg.TRAIN.EVAL_PERIOD != 0 else None
+    val_loader = build_loader(cfg, "val", rank, world_size) if cfg.TRAIN.EVAL_PERIOD != 0 else None
 
     # Create meters.
     val_meter = TestMeter(len(val_loader), wandb=wandb_run) if val_loader is not None else None

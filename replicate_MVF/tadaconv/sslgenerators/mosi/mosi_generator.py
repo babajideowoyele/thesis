@@ -7,12 +7,12 @@ import os
 import torch
 import random
 import tadaconv.utils.logging as logging
-import torchvision.transforms._functional_video as F
+import torchvision.transforms.functional as F
 
 from tadaconv.sslgenerators.builder import SSL_GENERATOR_REGISTRY
 
-from torchvision.transforms import Compose
-import torchvision.transforms._transforms_video as transforms
+from torchvision.transforms import Compose, v2
+import torchvision.transforms as transforms
 from tadaconv.datasets.utils.transformations import ColorJitter
 
 logger = logging.get_logger(__name__)
@@ -331,7 +331,8 @@ class MoSIGenerator(object):
         if self.split == 'train' or self.split == 'val':
             # To tensor and normalize
             std_transform_list += [
-                transforms.ToTensorVideo(),
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.ToDtype(torch.float32, scale=True),
             ]
             # Add color aug
             if self.cfg.AUGMENTATION.COLOR_AUG:
@@ -348,18 +349,19 @@ class MoSIGenerator(object):
                         ),
                 )
             std_transform_list += [
-                transforms.NormalizeVideo(
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
                     inplace=True
                 ),
-                transforms.RandomHorizontalFlipVideo(),
+                transforms.RandomHorizontalFlip(),
             ]
             self.transform = Compose(std_transform_list)
         elif self.split == 'test':
             std_transform_list += [
-                transforms.ToTensorVideo(),
-                transforms.NormalizeVideo(
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.ToDtype(torch.float32, scale=True),
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
                     inplace=True

@@ -9,7 +9,7 @@ import tadaconv.utils.misc as misc
 from tadaconv.utils.sampler import MultiFoldDistributedSampler
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data.sampler import RandomSampler
+from torch.utils.data.sampler import RandomSampler, WeightedRandomSampler
 from tadaconv.utils.val_dist_sampler import MultiSegValDistributedSampler
 from tadaconv.datasets.utils.collate_functions import COLLATE_FN_REGISTRY
 
@@ -62,9 +62,14 @@ def get_sampler(cfg, dataset, split, shuffle, rank, world_size):
                 shuffle=shuffle
             )
     else:
-        return None
+        weights = get_weights(dataset)
+        return torch.utils.data.WeightedRandomSampler(
+                weights,
+                num_samples=len(weights),
+                replacement=True
+            )
 
-def build_loader(cfg, split):
+def build_loader(cfg, split, rank=0, world_size=1):
     """
     Constructs the data loader for the given dataset.
     Args:
@@ -98,7 +103,7 @@ def build_loader(cfg, split):
     dataset = build_dataset(dataset_name, cfg, split)
 
     # Create a sampler for multi-process training
-    sampler = get_sampler(cfg, dataset, split, shuffle)
+    sampler = get_sampler(cfg, dataset, split, shuffle, rank, world_size)
     # Create a loader
     if hasattr(cfg.DATA_LOADER, "COLLATE_FN") and cfg.DATA_LOADER.COLLATE_FN is not None:
         collate_fn = COLLATE_FN_REGISTRY.get(cfg.DATA_LOADER.COLLATE_FN)(cfg)
@@ -126,10 +131,10 @@ def shuffle_dataset(loader, cur_epoch):
     """
     sampler = loader.sampler
     assert isinstance(
-        sampler, (RandomSampler, DistributedSampler, MultiFoldDistributedSampler)
+        sampler, (RandomSampler, DistributedSampler, MultiFoldDistributedSampler, WeightedRandomSampler, DistributedProxySampler)
     ), "Sampler type '{}' not supported".format(type(sampler))
     # RandomSampler handles shuffling automatically
-    if isinstance(sampler, (DistributedSampler, MultiFoldDistributedSampler)):
+    if isinstance(sampler, (DistributedSampler, MultiFoldDistributedSampler, DistributedProxySampler)):
         # DistributedSampler shuffles data based on epoch
         sampler.set_epoch(cur_epoch)
 

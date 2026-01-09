@@ -18,14 +18,12 @@ import time
 import random
 import decord
 import traceback
-import numpy as np
 from PIL import Image
 from decord import VideoReader
-from decord import cpu, gpu
 decord.bridge.set_bridge('native')
 
-from torchvision.transforms import Compose
-import torchvision.transforms._transforms_video as transforms
+from torchvision.transforms import Compose, v2
+import torchvision.transforms as transforms
 from tadaconv.datasets.utils.transformations import (
     ColorJitter, 
     KineticsResizedCrop
@@ -391,7 +389,7 @@ class BaseVideoDataset(torch.utils.data.Dataset):
             "ssv2" in self.cfg.TRAIN.DATASET and \
             self.cfg.AUGMENTATION.SSV2_FLIP):
             if random.random() < 0.5:
-                data["video"] = torchvision.transforms._functional_video.hflip(data["video"])
+                data["video"] = torchvision.transforms.functional.hflip(data["video"])
                 label_transforms = {
                     86: 87,
                     87: 86,
@@ -563,8 +561,9 @@ class BaseVideoDataset(torch.utils.data.Dataset):
         self.transform = None
         if self.split == 'train' and not self.cfg.PRETRAIN.ENABLE:
             std_transform_list = [
-                transforms.ToTensorVideo(),
-                transforms.RandomHorizontalFlipVideo()
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.ToDtype(torch.float32, scale=True), # 2. Scale to [0, 1] (Float32)
+                v2.RandomHorizontalFlip(p=0.5)         # 3. Flips across temporal dimension
             ]
             
             if self.cfg.DATA.TRAIN_JITTER_SCALES[0] <= 1:
@@ -600,7 +599,7 @@ class BaseVideoDataset(torch.utils.data.Dataset):
                         ),
                 )
             std_transform_list += [
-                transforms.NormalizeVideo(
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
                     inplace=True
@@ -615,9 +614,10 @@ class BaseVideoDataset(torch.utils.data.Dataset):
                     num_spatial_crops = self.cfg.TEST.NUM_SPATIAL_CROPS
                 )
             std_transform_list = [
-                transforms.ToTensorVideo(),
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.ToDtype(torch.float32, scale=True),
                 self.resize_video,
-                transforms.NormalizeVideo(
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
                     inplace=True

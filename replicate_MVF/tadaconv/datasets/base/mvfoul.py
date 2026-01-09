@@ -8,8 +8,8 @@ import os
 
 import numpy as np
 import cv2
-from torchvision.transforms import Compose
-import torchvision.transforms._transforms_video as transforms
+from torchvision.transforms import Compose, v2
+import torchvision.transforms as transforms
 import torch
 from tadaconv.datasets.utils.random_erasing import RandomErasing
 from tadaconv.datasets.utils.transformations import ColorJitter, KineticsResizedCrop
@@ -111,14 +111,15 @@ class Mvfoul(torch.utils.data.Dataset):
     def get_weights(self):
         if self.weights is None:
             class_counts = {}
-            for label in self.labels:
+            labels = self.labels if not self.overfit else self.overfit_labels
+            for label in labels:
                 action_class = label["type"]
                 if action_class not in class_counts:
                     class_counts[action_class] = 0
                 class_counts[action_class] += 1
             
             weights: list[float] = []
-            for label in self.labels:
+            for label in labels:
                 action_class = label["type"]
                 weight = float(1.0 / np.sqrt(class_counts[action_class]))
                 weights.append(weight)
@@ -162,15 +163,14 @@ class Mvfoul(torch.utils.data.Dataset):
         indices = self._custom_sampling(
             vid_length=num_frames,
             vid_fps=fps,
-            num_frames=self.cfg.DATA.NUM_INPUT_FRAMES,
+            num_frames=self.take_frames,
             interval=2,
             height=height,
             width=width,
         )
-        indices = torch.linspace(0, num_frames - 1, steps=self.take_frames).tolist()
         frames = []
         for idx in indices:
-            vid.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            vid.set(cv2.CAP_PROP_POS_FRAMES, idx.item())
             success, frame = vid.read()
             if success:
                 frames.append(frame)
@@ -180,7 +180,7 @@ class Mvfoul(torch.utils.data.Dataset):
         selected = torch.stack([torch.from_numpy(frame) for frame in frames])
         
         if not self.cfg.PRETRAIN.ENABLE:
-            selected = self.transform(selected)  #  C, T, H, W
+            selected = self.transform(selected.permute(0, 3, 1, 2))  #  C, T, H, W
         else:
             selected = selected.permute(3,0,1,2)
         return selected.unsqueeze(0)
@@ -240,14 +240,22 @@ class Mvfoul(torch.utils.data.Dataset):
             corresponding generator.
         """
         self.transform = None
+        fill_value = [int(x * 255) for x in self.cfg.DATA.MEAN]
         if self.split == 'train' and not self.cfg.PRETRAIN.ENABLE:
             std_transform_list = [
-                transforms.ToTensorVideo(),
-                transforms.RandomHorizontalFlipVideo()
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.RandAugment(
+                    num_ops=2, 
+                    magnitude=9,
+                    fill=fill_value, # This replaces the 'mean' functionality in timm
+                    interpolation=v2.InterpolationMode.BILINEAR 
+                ) if self.cfg.AUGMENTATION.AUTOAUGMENT.ENABLE else v2.Identity(),
+                v2.ToDtype(torch.float32, scale=True),
+                transforms.RandomHorizontalFlip()
             ]
             
             if self.cfg.DATA.TRAIN_JITTER_SCALES[0] <= 1:
-                std_transform_list += [transforms.RandomResizedCropVideo(
+                std_transform_list += [transforms.RandomResizedCrop(
                         size=self.cfg.DATA.TRAIN_CROP_SIZE,
                         scale=[
                             self.cfg.DATA.TRAIN_JITTER_SCALES[0],
@@ -260,29 +268,22 @@ class Mvfoul(torch.utils.data.Dataset):
                     short_side_range = [self.cfg.DATA.TRAIN_JITTER_SCALES[0], self.cfg.DATA.TRAIN_JITTER_SCALES[1]],
                     crop_size = self.cfg.DATA.TRAIN_CROP_SIZE,
                 ),]
-            if self.cfg.AUGMENTATION.AUTOAUGMENT.ENABLE:
-                from tadaconv.datasets.utils.auto_augment import creat_auto_augmentation
-                std_transform_list.append(creat_auto_augmentation(self.cfg.AUGMENTATION.AUTOAUGMENT.TYPE, self.cfg.DATA.TRAIN_CROP_SIZE, self.cfg.DATA.MEAN))
-            # Add color aug
+
             if self.cfg.AUGMENTATION.COLOR_AUG:
-                std_transform_list.append(
-                    ColorJitter(
-                        brightness=self.cfg.AUGMENTATION.BRIGHTNESS,
-                        contrast=self.cfg.AUGMENTATION.CONTRAST,
-                        saturation=self.cfg.AUGMENTATION.SATURATION,
-                        hue=self.cfg.AUGMENTATION.HUE,
-                        color=self.cfg.AUGMENTATION.COLOR_P,
-                        grayscale=self.cfg.AUGMENTATION.GRAYSCALE,
-                        consistent=self.cfg.AUGMENTATION.CONSISTENT,
-                        shuffle=self.cfg.AUGMENTATION.SHUFFLE,
-                        gray_first=self.cfg.AUGMENTATION.GRAY_FIRST,
-                        ),
-                )
+                color_jitter = v2.ColorJitter(
+                            brightness=self.cfg.AUGMENTATION.BRIGHTNESS,
+                            contrast=self.cfg.AUGMENTATION.CONTRAST,
+                            saturation=self.cfg.AUGMENTATION.SATURATION,
+                            hue=self.cfg.AUGMENTATION.HUE)
+                std_transform_list += [
+                    v2.RandomApply([color_jitter], p=self.cfg.AUGMENTATION.COLOR_P),
+                    v2.RandomGrayscale(p=self.cfg.AUGMENTATION.GRAYSCALE),
+                ]
             std_transform_list += [
-                transforms.NormalizeVideo(
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
-                    inplace=True
+                    inplace=False
                 ),
                 RandomErasing(self.cfg)
             ]
@@ -294,12 +295,13 @@ class Mvfoul(torch.utils.data.Dataset):
                     num_spatial_crops = self.cfg.TEST.NUM_SPATIAL_CROPS
                 )
             std_transform_list = [
-                transforms.ToTensorVideo(),
+                v2.ToImage(),                          # 1. Convert to tensor subclass
+                v2.ToDtype(torch.float32, scale=True),
                 self.resize_video,
-                transforms.NormalizeVideo(
+                v2.Normalize(
                     mean=self.cfg.DATA.MEAN,
                     std=self.cfg.DATA.STD,
-                    inplace=True
+                    inplace=False
                 )
             ]
             self.transform = Compose(std_transform_list)

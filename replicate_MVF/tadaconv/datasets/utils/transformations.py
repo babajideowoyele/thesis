@@ -6,7 +6,7 @@
 import torch
 import math
 
-import torchvision.transforms._functional_video as F
+import torchvision.transforms.functional as F
 from torchvision.transforms import Lambda, Compose
 import random
 import numbers
