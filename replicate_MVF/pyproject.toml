@@ -16,6 +16,7 @@ dependencies = [
     "pandas>=2.3.3",
     "psutil>=7.1.2",
     "pydantic>=2.12.3",
+    "pytorch-ignite>=0.5.3",
     "pyyaml>=6.0.3",
     "simplejson>=3.20.2",
     "soccernet>=0.1.62",

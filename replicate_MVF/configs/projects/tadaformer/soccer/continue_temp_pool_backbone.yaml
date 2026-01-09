@@ -7,7 +7,7 @@ DATA:
   TAKE_NUM_FRAMES: 64
   NUM_VIEWS: 2
   OVERFIT:
-    ENABLE: true
+    ENABLE: false
     NUM_SAMPLES: 3
   
 DATA_LOADER:
