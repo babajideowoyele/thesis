@@ -51,11 +51,11 @@ def test_model(test_loader, model, test_meter: TestMeter, cfg):
         
         # Gather all the predictions across all the devices.
         if misc.get_num_gpus(cfg) > 1:
-            for k in preds.keys():
+            for k in bal_acc.keys():
                 bal_acc[k] = du.all_reduce([bal_acc[k]])[0]
+            for k in acc.keys():
                 acc[k] = du.all_reduce([acc[k]])[0]
-            acc = du.all_reduce([acc["overall"]])[0]
-
+    
         bal_acc["joint_acc"] = torch.mean(torch.stack([bal_acc[k] for k in bal_acc.keys()]))
         for k in acc.keys():
             bal_acc["acc_"+k] = acc[k]

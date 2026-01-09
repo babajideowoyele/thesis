@@ -110,7 +110,7 @@ def train_epoch(
         
         if do_step:
             optimizer.step()
-            logger.info(f"Epoch {cur_epoch} Iteration {cur_iter}: performed optimizer step.")
+            logger.info(f"Epoch {cur_epoch+1} Iteration {cur_iter}: performed optimizer step.")
             optimizer.zero_grad()
 
             if model_ema is not None:
