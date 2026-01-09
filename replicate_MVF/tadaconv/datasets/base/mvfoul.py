@@ -5,6 +5,8 @@
 
 import json
 import os
+
+import numpy as np
 import cv2
 from torchvision.transforms import Compose
 import torchvision.transforms._transforms_video as transforms
@@ -29,6 +31,7 @@ class Mvfoul(torch.utils.data.Dataset):
         self.take_frames = self.get_num_frames(cfg)
         self.overfit: bool = cfg.DATA.OVERFIT.ENABLE
         self.num_overfit_samples: int = cfg.DATA.OVERFIT.NUM_SAMPLES
+        self.weights = None
         self._construct_dataset()
         self._config_transform()
 
@@ -71,6 +74,7 @@ class Mvfoul(torch.utils.data.Dataset):
         
         self._process_labels(self.annotations)
 
+
         if self.overfit:
             list_classes = {cls: 0 for cls in ActionClass.get_classes()}
             self.overfit_dirs = []
@@ -103,6 +107,24 @@ class Mvfoul(torch.utils.data.Dataset):
         feature = self._read_videos_from_dir(os.path.join(self.data_root_dir, dir_name))
         return feature[0], feature[1], {'supervised': label,
                                         'meta_data': {"dir_name": dir_name},}
+    
+    def get_weights(self):
+        if self.weights is None:
+            class_counts = {}
+            for label in self.labels:
+                action_class = label["type"]
+                if action_class not in class_counts:
+                    class_counts[action_class] = 0
+                class_counts[action_class] += 1
+            
+            weights: list[float] = []
+            for label in self.labels:
+                action_class = label["type"]
+                weight = float(1.0 / np.sqrt(class_counts[action_class]))
+                weights.append(weight)
+            self.weights = weights
+        
+        return self.weights
 
 
     def _read_videos_from_dir(self, dir_path):

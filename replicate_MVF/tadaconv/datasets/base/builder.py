@@ -3,8 +3,7 @@
 
 """ Builder for the dataloader."""
 
-import itertools
-import numpy as np
+from ignite.distributed.auto import DistributedProxySampler
 import torch
 import tadaconv.utils.misc as misc
 from tadaconv.utils.sampler import MultiFoldDistributedSampler
@@ -19,7 +18,20 @@ from tadaconv.utils.registry import Registry
 
 DATASET_REGISTRY = Registry("DATASET")
 
-def get_sampler(cfg, dataset, split, shuffle):
+def get_weights(dataset):
+    """
+        Returns the weights for each sample in the dataset.
+        Args:
+            dataset (Dataset): constructed dataset. 
+        Returns:
+            weights (list): list of weights for each sample in the dataset. 
+    """
+    if hasattr(dataset, "get_weights"):
+        return dataset.get_weights()
+    else:
+        return [1.0/len(dataset)] * len(dataset)
+
+def get_sampler(cfg, dataset, split, shuffle, rank, world_size):
     """
         Returns the sampler object for the dataset.
         Args:
@@ -36,6 +48,14 @@ def get_sampler(cfg, dataset, split, shuffle):
             )
         elif cfg.USE_MULTISEG_VAL_DIST and cfg.TRAIN.ENABLE is False:
             return MultiSegValDistributedSampler(dataset, shuffle=False)
+        elif split == "train" and cfg.TRAIN.NUM_FOLDS == 1:
+            weights = get_weights(dataset)
+            sampler = torch.utils.data.WeightedRandomSampler(
+                weights,
+                num_samples=len(weights),
+                replacement=True
+            )
+            return DistributedProxySampler(sampler, world_size, rank)
         else:
             return DistributedSampler(
                 dataset,
