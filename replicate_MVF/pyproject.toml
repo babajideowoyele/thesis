@@ -24,4 +24,5 @@ dependencies = [
     "torchvision>=0.24.0",
     "wandb>=0.22.3",
     "weave>=0.52.14",
+    "weightwatcher>=0.7.6",
 ]

@@ -46,7 +46,7 @@ TRAIN:
   LOSS_FUNC: cross_entropy
   EVAL_PERIOD: 4                 # Disable intermediate evals for now
   NUM_FOLDS: 1
-  AUTO_RESUME: false
+  AUTO_RESUME: true
   CHECKPOINT_PERIOD: 2
   CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"     # !!@2
   CHECKPOINT_TYPE: pytorch
