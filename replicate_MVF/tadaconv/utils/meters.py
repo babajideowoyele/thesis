@@ -834,6 +834,11 @@ class TestMeter(object):
         self.total_iters = total_iters
         self.aggregation = {}
 
+    def reset(self):
+        self.aggregation = {}
+        self.iter_timer.reset() 
+        self.total_iters = 0
+
     def iter_tic(self):
         """
         Start to record time.

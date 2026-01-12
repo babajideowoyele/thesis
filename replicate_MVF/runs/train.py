@@ -398,7 +398,9 @@ def train(rank, cfg, world_size=1):
         # Evaluate the model on validation set.
         if misc.is_eval_epoch(cfg, cur_epoch+cfg.TRAIN.NUM_FOLDS-1):
             assert val_loader is not None and val_meter is not None
-            test_model(val_loader, model, val_meter, cfg)
+            with torch.no_grad():   
+                test_model(val_loader, model, val_meter, cfg)
+            val_meter.reset()
 
     if model_bucket is not None:
         filename = os.path.join(cfg.OUTPUT_DIR, cfg.TRAIN.LOG_FILE)
