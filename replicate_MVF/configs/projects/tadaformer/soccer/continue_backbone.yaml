@@ -42,7 +42,7 @@ TRAIN:
   BAD_EXAMPLE_THRESHOLD: 5
   LOG_FILE: training_log.log
   LOSS_FUNC: cross_entropy
-  EVAL_PERIOD: 4                 # Disable intermediate evals for now
+  EVAL_PERIOD: 4                 
   NUM_FOLDS: 1
   AUTO_RESUME: true
   CHECKPOINT_PERIOD: 4
