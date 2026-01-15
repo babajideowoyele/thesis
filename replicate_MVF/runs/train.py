@@ -3,6 +3,7 @@
 """Train a video classification model."""
 import numpy as np
 import pprint
+from omegaconf import DictConfig, OmegaConf
 import torch
 
 import os
@@ -315,7 +316,7 @@ def train(rank, cfg, world_size=1):
     # Print config.
     if cfg.LOG_CONFIG_INFO:
         logger.info("Train with config:")
-        logger.info(pprint.pformat(cfg))
+        logger.info(pprint.pformat(cfg)) if not isinstance(cfg, DictConfig) else logger.info(OmegaConf.to_yaml(cfg))
 
     # Build the video model and print model statistics.
     model, model_ema = build_model(cfg, rank)

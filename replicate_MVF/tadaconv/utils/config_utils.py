@@ -145,6 +145,7 @@ def load_config_from_args(args=None) -> DictConfig:
                 i += 2
             else:
                 i += 1
+        
     
     return load_config(
         config_name=parsed_args.config_name,

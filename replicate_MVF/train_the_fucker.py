@@ -1,10 +1,9 @@
 
 import hydra
-from omegaconf import DictConfig
-from tadaconv.utils.config import Config
+from omegaconf import DictConfig, OmegaConf
 from runs.train import train
 
-@hydra.main(config_path="configs", config_name="config", version_base="1.3")
+@hydra.main(config_path="configs", config_name="att_config", version_base="1.3")
 def main(cfg: DictConfig) -> None:
     """Main entry point using Hydra decorator."""
     world_size = cfg.NUM_GPUS
@@ -19,3 +18,6 @@ def main(cfg: DictConfig) -> None:
         os.environ["MASTER_PORT"] = str(s.getsockname()[1])
         s.close()
         spawn(train, args=(cfg, world_size), nprocs=world_size)
+
+if __name__ == "__main__":
+    main()

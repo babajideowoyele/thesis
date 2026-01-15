@@ -6,7 +6,7 @@ defaults:
   - base                          # Stable defaults (rarely change)
   - model: general_soccer         # Model architecture (stable)
   - training: backbone_soccer_att # Training params (medium frequency)
-  - experiment: null              # Experiment overrides (frequent) - optional
+  - experiment: continue_att_backbone              # Experiment overrides (frequent) - optional
   - _self_                        # Allow this file to override defaults
 
 # You can add global overrides here if needed
