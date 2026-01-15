@@ -1,0 +1,12 @@
+# Main Hydra config entry point
+# Composition order: base -> model -> training -> experiment
+# Later configs override earlier ones
+
+defaults:
+  - base                          # Stable defaults (rarely change)
+  - model: general_soccer         # Model architecture (stable)
+  - training: backbone_soccer_att # Training params (medium frequency)
+  - experiment: null              # Experiment overrides (frequent) - optional
+  - _self_                        # Allow this file to override defaults
+
+# You can add global overrides here if needed

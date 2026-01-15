@@ -1,8 +1,12 @@
 
+import hydra
+from omegaconf import DictConfig
 from tadaconv.utils.config import Config
 from runs.train import train
-if __name__ == "__main__":
-    cfg = Config(load=True)
+
+@hydra.main(config_path="configs", config_name="config", version_base="1.3")
+def main(cfg: DictConfig) -> None:
+    """Main entry point using Hydra decorator."""
     world_size = cfg.NUM_GPUS
     if world_size <= 1:
         train(0, cfg, world_size=world_size)

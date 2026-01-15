@@ -1,0 +1,241 @@
+# Base configuration - rarely changes
+# Contains all default values for the entire system
+
+TASK_TYPE: classification
+
+PRETRAIN:
+  ENABLE: false
+
+LOCALIZATION:
+  ENABLE: false
+
+TRAIN:
+  ENABLE: false
+  DATASET: null
+  BATCH_SIZE: 128
+  ACCUMULATE_EVERY: null
+  MAX_BAD_EXAMPLES: 20
+  BAD_EXAMPLE_THRESHOLD: 5
+  LOG_FILE: training_log.log
+  LOSS_FUNC: cross_entropy
+  EVAL_PERIOD: 10
+  NUM_FOLDS: 1
+  AUTO_RESUME: true
+  CHECKPOINT_PERIOD: 10
+  INIT: ""
+  CHECKPOINT_FILE_PATH: ""
+  CHECKPOINT_TYPE: pytorch
+  CHECKPOINT_INFLATE: false
+  CHECKPOINT_PRE_PROCESS:
+    ENABLE: false
+  FINE_TUNE: false
+  ONLY_LINEAR: false
+  LR_REDUCE: false
+  TRAIN_VAL_COMBINE: false
+
+TEST:
+  ENABLE: false
+  DATASET: null
+  BATCH_SIZE: 100
+  NUM_SPATIAL_CROPS: 1
+  SPATIAL_CROPS: cc
+  NUM_ENSEMBLE_VIEWS: 1
+  LOG_FILE: val.log
+  CHECKPOINT_FILE_PATH: ""
+  CHECKPOINT_TYPE: pytorch
+  AUTOMATIC_MULTI_SCALE_TEST: true
+
+VISUALIZATION:
+  ENABLE: false
+  NAME: ""
+  FEATURE_MAPS:
+    ENABLE: false
+    BASE_OUTPUT_DIR: ""
+
+SUBMISSION:
+  ENABLE: false
+  SAVE_RESULTS_PATH: "test.json"
+
+DATA:
+  DATA_ROOT_DIR: /data_root/
+  ANNO_DIR: /anno_dir/
+  NUM_INPUT_FRAMES: 16
+  TAKE_NUM_FRAMES: 64
+  NUM_VIEWS: 4
+  NUM_INPUT_CHANNELS: 3
+  SAMPLING_MODE: interval_based
+  SAMPLING_RATE: 4
+  TRAIN_JITTER_SCALES: [168, 224]
+  TRAIN_CROP_SIZE: 112
+  TEST_SCALE: 224
+  TEST_CROP_SIZE: 112
+  MEAN: [0.45, 0.45, 0.45]
+  STD: [0.225, 0.225, 0.225]
+  MULTI_LABEL: false
+  ENSEMBLE_METHOD: sum
+  TARGET_FPS: 30
+  FPS: 30
+  CENTER_FRAME: 75
+  MINUS_INTERVAL: false
+  WEIGHTED_LOSS: false
+  CLASS_WEIGHTS:
+    TYPE: 1.0
+    SEVERITY: 1.0
+  FREQUENCIES:
+    TYPE: []
+    SEVERITY: []
+  OVERFIT:
+    ENABLE: false
+    NUM_SAMPLES: 3
+
+MODEL:
+  NAME: null
+  EMA:
+    ENABLE: false
+    DECAY: 0.99996
+
+VIDEO:
+  BACKBONE:
+    DEPTH: null
+    META_ARCH: null
+    NUM_FILTERS: null
+    NUM_INPUT_CHANNELS: 3
+    NUM_OUT_FEATURES: null
+    KERNEL_SIZE: null
+    DOWNSAMPLING: null
+    DOWNSAMPLING_TEMPORAL: null
+    NUM_STREAMS: 1
+    EXPANSION_RATIO: 2
+    BRANCH:
+      NAME: null
+    STEM:
+      NAME: null
+    NONLOCAL:
+      ENABLE: false
+      STAGES: [5]
+      MASK_ENABLE: false
+    INITIALIZATION: null
+    PREAGGREGATE:
+      ENABLE: false
+      NAME: null
+  HEAD:
+    NAME: BaseHead
+    ACTIVATION: softmax
+    DROPOUT_RATE: 0
+    NUM_CLASSES:
+      TYPE: null
+      SEVERITY: null
+
+OPTIMIZER:
+  ADJUST_LR: false
+  BASE_LR: null
+  LR_POLICY: cosine
+  MAX_EPOCH: 300
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 1e-3
+  WARMUP_EPOCHS: 10
+  WARMUP_START_LR: 0.0002
+  OPTIM_METHOD: adam
+  DAMPENING: 0.0
+  NESTEROV: true
+  BIAS_DOUBLE: false
+  NEW_PARAMS: []
+  NEW_PARAMS_MULT: 10
+  NEW_PARAMS_WD_MULT: 1
+  LAYER_WISE_LR_DECAY: 1.0
+  COSINE_AFTER_WARMUP: false
+  COSINE_END_LR: 1e-6
+  HEAD_LRMULT: 1.0
+
+BN:
+  WB_LOCK: false
+  FREEZE: false
+  WEIGHT_DECAY: 0.0
+  MOMENTUM: 0.1
+  EPS: 1e-5
+  SYNC: false
+
+DATA_LOADER:
+  NUM_WORKERS: 4
+  PIN_MEMORY: false
+  ENABLE_MULTI_THREAD_DECODE: true
+  COLLATE_FN: null
+
+NUM_GPUS: 1
+SHARD_ID: 0
+NUM_SHARDS: 1
+RANDOM_SEED: 0
+OUTPUT_DIR: output/
+OUTPUT_CFG_FILE: configuration.log
+LOG_PERIOD: 10
+DIST_BACKEND: nccl
+LOG_MODEL_INFO: true
+LOG_CONFIG_INFO: true
+
+OSS:
+  ENABLE: false
+  KEY: null
+  SECRET: null
+  ENDPOINT: null
+  CHECKPOINT_OUTPUT_PATH: null
+  SECONDARY_DATA_OSS:
+    ENABLE: false
+    KEY: null
+    SECRET: null
+    ENDPOINT: null
+    BUCKETS: [""]
+
+AUGMENTATION:
+  COLOR_AUG: false
+  COLOR_P: 0.0
+  BRIGHTNESS: 0.5
+  CONTRAST: 0.5
+  SATURATION: 0.5
+  HUE: 0.25
+  GRAYSCALE: 0.3
+  CONSISTENT: true
+  SHUFFLE: true
+  GRAY_FIRST: true
+  RATIO: [0.857142857142857, 1.1666666666666667]
+  USE_GPU: false
+  IS_SPLIT: false
+  SSV2_FLIP: false
+  MIXUP:
+    ENABLE: false
+    ALPHA: 0.0
+    PROB: 1.0
+    MODE: batch
+    SWITCH_PROB: 0.5
+  CUTMIX:
+    ENABLE: false
+    ALPHA: 0.0
+    MINMAX: null
+  RANDOM_ERASING:
+    ENABLE: false
+    PROB: 0.25
+    MODE: const
+    COUNT: [1, 1]
+    NUM_SPLITS: 0
+    AREA_RANGE: [0.02, 0.33]
+    MIN_ASPECT: 0.3
+  LABEL_SMOOTHING: 0.0
+  AUTOAUGMENT:
+    ENABLE: false
+    BEFORE_CROP: false
+    TYPE: null
+
+HUGGINGFACE:
+  LOAD: false
+  REPO: null
+  SAVE: false
+  CACHE_DIR: "./hf_cache"
+  SAVE_NAME: null
+
+WANDB:
+  SYNC_ENABLE: false
+  ENTITY_NAME: null
+  PROJECT_NAME: null
+  LOG_FREQUENCY: 100
+
+PAI: false
+USE_MULTISEG_VAL_DIST: false
