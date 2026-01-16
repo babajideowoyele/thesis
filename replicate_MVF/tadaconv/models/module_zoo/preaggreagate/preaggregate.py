@@ -46,8 +46,8 @@ class AttentionPooling(AttentionBased):
 
         self.MLP         = nn.Linear(self.width, self.carry_patches)
         self.T = cfg.DATA.NUM_INPUT_FRAMES
-        self.F = cfg.DATA.TAKE_NUM_FRAMES
-        self.positional_embedding = nn.Parameter(scale * torch.randn((cfg.DATA.TAKE_NUM_FRAMES * self.patch_number ** 2, self.width)))
+        self.F = cfg.DATA.TAKE_NUM_FRAMES * cfg.DATA.NUM_VIEWS // cfg.VIDEO.BACKBONE.TUBLET_STRIDE
+        self.positional_embedding = nn.Parameter(scale * torch.randn((self.F * self.patch_number, self.width)))
 
     def forward(self, x):
         assert x.dim() == 5, "Input tensor must be 5D (N, T*V, H, W, C)"

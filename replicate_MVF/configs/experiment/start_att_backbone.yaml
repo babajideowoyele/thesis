@@ -45,15 +45,15 @@ TRAIN:
   LOSS_FUNC: cross_entropy
   EVAL_PERIOD: 4
   NUM_FOLDS: 1
-  AUTO_RESUME: true
-  CHECKPOINT_PERIOD: 2
+  AUTO_RESUME: false
+  CHECKPOINT_PERIOD: 4
   CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
   ONLY_LINEAR: false
 
-OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att"
+OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att_posagg"
 
 TEST:
   ENABLE: true

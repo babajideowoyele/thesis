@@ -33,7 +33,7 @@ VIDEO:
 SHARD_ID: 0
 NUM_SHARDS: 1
 RANDOM_SEED: 0
-OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att"
+
 
 HUGGINGFACE:
   LOAD: false
