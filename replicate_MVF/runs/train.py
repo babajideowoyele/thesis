@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 """Train a video classification model."""
+from datetime import datetime
 import numpy as np
 import pprint
 from omegaconf import DictConfig, OmegaConf
@@ -220,12 +221,14 @@ def train(rank, cfg, world_size=1):
         load_dotenv(env_path)
         wandb.login(key=os.getenv("WANDB"))
         wandb_run = wandb.init(
+            # Set the wandb run name.
+            name=f"{cfg.WANDB.RUN_NAME}-{datetime.now().strftime('%m%d-%H%M')}",
             # Set the wandb entity where your project will be logged (generally your team name).
             entity=cfg.WANDB.ENTITY_NAME,
             # Set the wandb project where this run will be logged.
             project=cfg.WANDB.PROJECT_NAME,
             # Track hyperparameters and run metadata.
-            config=cfg.cfg_dict,
+            config=OmegaConf.to_container(cfg),
         )
         log_freq = cfg.WANDB.LOG_FREQUENCY if cfg.WANDB.LOG_FREQUENCY > 0 else 500
         wandb.watch(model, log="all", log_freq=log_freq)

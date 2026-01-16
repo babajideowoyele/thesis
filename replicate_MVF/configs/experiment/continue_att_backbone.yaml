@@ -68,6 +68,7 @@ TEST:
   AUTOMATIC_MULTI_SCALE_TEST: true
 
 WANDB:
+  RUN_NAME: "Continue_Attention"
   SYNC_ENABLE: false
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
