@@ -5,7 +5,7 @@
 
 import torch
 import torch.nn as nn
-from tadaconv.models.module_zoo.preaggreagate.preaggregate import AttentionPooling
+from tadaconv.models.module_zoo.preaggreagate.preaggregate import AttentionBased, AttentionPooling
 from tadaconv.utils.registry import Registry
 from tadaconv.models.base.base_blocks import (
     Base3DResStage, STEM_REGISTRY, BRANCH_REGISTRY, InceptionBaseConv3D, PREAGGREGATE_REGISTRY
@@ -246,9 +246,11 @@ class VisionTransformer(nn.Module):
             bias=False
         )
         if backbone_cfg.PREAGGREGATE.ENABLE:
-            self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg)
+            self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg) # type: ignore
+            if isinstance(self.preaggregate, AttentionBased):
+                self.positional_embedding = torch.zeros((self.num_patches_per_axis) ** 2 + 1, width)
         else:
-            self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get("Identity")(cfg)
+            self.preaggregate: nn.Module = nn.Identity() 
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
         self.positional_embedding = nn.Parameter(scale * torch.randn((self.num_patches_per_axis) ** 2 + 1, width))

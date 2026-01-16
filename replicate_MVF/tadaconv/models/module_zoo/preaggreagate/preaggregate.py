@@ -2,14 +2,6 @@ import torch
 from tadaconv.models.base.base_blocks import PREAGGREGATE_REGISTRY
 import torch.nn as nn
 
-@PREAGGREGATE_REGISTRY.register()
-class Identity(nn.Module):
-    def __init__(self, cfg):
-        super().__init__()
-
-    def forward(self, x):
-        return x
-
 
 @PREAGGREGATE_REGISTRY.register()
 class TemporalPooling(nn.Module):
@@ -28,26 +20,34 @@ class TemporalPooling(nn.Module):
         x = x.max(dim=2).values
         assert x.shape == (N, self.T // divide, H, W, C)
         return x
-    
+
+
+class AttentionBased(nn.Module):
+    def __init__(self):
+        super().__init__()
+
 @PREAGGREGATE_REGISTRY.register()
-class AttentionPooling(nn.Module):
+class AttentionPooling(AttentionBased):
     def __init__(self, cfg,):
         super(AttentionPooling, self).__init__()
         self.width = cfg.VIDEO.BACKBONE.NUM_FEATURES
         self.num_heads = cfg.VIDEO.BACKBONE.NUM_HEADS
         dim_head = self.width // self.num_heads
         self.scale = dim_head ** -0.5
-        frame_equivalance = 8
+        frame_equivalence = 8
+
+        scale = self.width ** -0.5
 
         input_resolution    = cfg.VIDEO.BACKBONE.INPUT_RES
         patch_size          = cfg.VIDEO.BACKBONE.PATCH_SIZE
 
         self.patch_number = (input_resolution // patch_size) ** 2
-        self.carry_patches = self.patch_number * frame_equivalance
+        self.carry_patches = self.patch_number * frame_equivalence
 
         self.MLP         = nn.Linear(self.width, self.carry_patches)
         self.T = cfg.DATA.NUM_INPUT_FRAMES
         self.F = cfg.DATA.TAKE_NUM_FRAMES
+        self.positional_embedding = nn.Parameter(scale * torch.randn((cfg.DATA.TAKE_NUM_FRAMES * self.patch_number ** 2, self.width)))
 
     def forward(self, x):
         assert x.dim() == 5, "Input tensor must be 5D (N, T*V, H, W, C)"
@@ -56,12 +56,13 @@ class AttentionPooling(nn.Module):
 
         assert C == self.width, f"Input tensor channel dimension must be {self.width} but has size {x.size()}"
         x = x.reshape(N, -1, C)
+        x = x + self.positional_embedding.to(x.dtype)
         x = torch.softmax(self.MLP(x), dim=1).transpose(-1, -2) @ x
 
         return x.reshape(N, -1, H, W, C) + residual.unsqueeze(1)
         
 @PREAGGREGATE_REGISTRY.register()
-class TransformerPooling(nn.Module):
+class TransformerPooling(AttentionBased):
     def __init__(self, cfg):
         super(TransformerPooling, self).__init__()
         self.width = cfg.VIDEO.BACKBONE.NUM_FEATURES
