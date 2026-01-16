@@ -2,7 +2,7 @@
 # Experiment: Continue training attention backbone
 # Stability: LOW - changes frequently per experiment
 
-NUM_GPUS: 1
+NUM_GPUS: 2
 
 DATA:
   NUM_INPUT_FRAMES: 16
