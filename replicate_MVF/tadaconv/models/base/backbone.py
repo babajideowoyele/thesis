@@ -245,15 +245,15 @@ class VisionTransformer(nn.Module):
             padding=(tublet_size//2, 0, 0),
             bias=False
         )
+        scale = width ** -0.5
+        self.positional_embedding = nn.Parameter(scale * torch.randn((self.num_patches_per_axis) ** 2 + 1, width))
         if backbone_cfg.PREAGGREGATE.ENABLE:
             self.preaggregate: nn.Module = PREAGGREGATE_REGISTRY.get(backbone_cfg.PREAGGREGATE.NAME)(cfg) # type: ignore
-            if isinstance(self.preaggregate, AttentionBased):
-                self.positional_embedding = torch.zeros((self.num_patches_per_axis) ** 2 + 1, width)
         else:
             self.preaggregate: nn.Module = nn.Identity() 
-        scale = width ** -0.5
+        
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
-        self.positional_embedding = nn.Parameter(scale * torch.randn((self.num_patches_per_axis) ** 2 + 1, width))
+        
         self.ln_pre = nn.LayerNorm(width)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
@@ -313,7 +313,7 @@ class VisionTransformer(nn.Module):
         # x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
 
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
-        x = x + self.positional_embedding.to(x.dtype)
+        x = x + self.positional_embedding.to(x.dtype) if not isinstance(self.preaggregate, AttentionBased) else x
         x = self.ln_pre(x)
         
 

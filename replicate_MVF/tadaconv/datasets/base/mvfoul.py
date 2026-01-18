@@ -117,12 +117,22 @@ class Mvfoul(torch.utils.data.Dataset):
                 if action_class not in class_counts:
                     class_counts[action_class] = 0
                 class_counts[action_class] += 1
+            if self.cfg.TRAIN.UNDERSAMPLE.ENABLE and self.split == "train":
+                min_count = min(class_counts.values())
+                for action_class in class_counts:
+                    class_counts[action_class] = min(class_counts[action_class], min_count * self.cfg.TRAIN.UNDERSAMPLE.RATE)
+            
+            factors = {action_class: 1.0 / count for action_class, count in class_counts.items()}
             
             weights: list[float] = []
             for label in labels:
+                if class_counts[label["type"]] <= 0:
+                    weights.append(0.0)
+                    continue
                 action_class = label["type"]
-                weight = float(1.0 / np.sqrt(class_counts[action_class]))
+                weight = float(factors[action_class])
                 weights.append(weight)
+                class_counts[action_class] -= 1
             self.weights = weights
         
         return self.weights

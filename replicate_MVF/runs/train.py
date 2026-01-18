@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 """Train a video classification model."""
+from datetime import datetime
 import numpy as np
 import pprint
 from omegaconf import DictConfig, OmegaConf
@@ -63,6 +64,9 @@ def train_epoch(
     # despite of the frozen BN in the backbone.
     norm_train = False
     num_norms = 0
+    ks = {
+        i.lower(): n for i, n in cfg.DATA.FREQUENCIES.items() 
+        }
     for module in model.modules():
         if isinstance(module, (nn.BatchNorm1d)):
             num_norms += 1
@@ -132,7 +136,13 @@ def train_epoch(
             train_meter.update_custom_stats(loss_in_parts)
         else:
             assert isinstance(labels["supervised"], dict)
-            balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
+            ks = {
+                i.lower(): [0.0]*len(n) for i, n in cfg.DATA.FREQUENCIES.items()
+                }
+            for name, label in labels["supervised"].items():
+                for c in label:
+                    ks[name][c] += 1.0
+            balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks=ks)
             
             if misc.get_num_gpus(cfg) > 1:
                 loss_for_log = du.all_reduce([loss_for_log])[0].item()
@@ -172,128 +182,6 @@ def train_epoch(
     train_meter.log_epoch_stats(cur_epoch+cfg.TRAIN.NUM_FOLDS-1)
     train_meter.reset()
 
-
-@torch.no_grad()
-def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
-    """
-    Evaluate the model on the val set.
-    Args:
-        val_loader (loader): data loader to provide validation data.
-        model (model): model/model_ema to evaluate the performance.
-        val_meter (ValMeter): meter instance to record and calculate the metrics.
-        cur_epoch (int): number of the current epoch of training.
-        cfg (Config): The global config object.
-    """
-
-    # Evaluation mode enabled. The running stats would not be updated.
-    model.eval()
-    val_meter.iter_tic()
-
-    for cur_iter, (inputs, masks, labels) in enumerate(val_loader):
-        if misc.get_num_gpus(cfg):
-            if cfg.NUM_GPUS > 0 or cfg.AUGMENTATION.USE_GPU:
-                inputs = tu.tensor2cuda(inputs)
-                labels = tu.tensor2cuda(labels)
-                masks = tu.tensor2cuda(masks)
-
-        preds, logits = model(inputs, masks)
-        if cfg.PRETRAIN.ENABLE and (cfg.PRETRAIN.GENERATOR == 'MoSIGenerator'):
-            if "move_x" in preds.keys():
-                preds["move_joint"] = preds["move_x"]
-            elif "move_y" in preds.keys():
-                preds["move_joint"] = preds["move_y"]
-            num_topks_correct = metrics.topks_correct(preds["move_joint"], labels["self-supervised"]["move_joint"].reshape(preds["move_joint"].shape[0]), (1, 4))
-            top1_err, top5_err = [
-                (1.0 - x / preds["move_joint"].shape[0]) * 100.0 for x in num_topks_correct
-            ]
-            if misc.get_num_gpus(cfg) > 1:
-                top1_err, top5_err = du.all_reduce([top1_err, top5_err])
-            top1_err, top5_err = top1_err.item(), top5_err.item()
-            val_meter.iter_toc()
-            val_meter.update_stats(
-                top1_err,
-                top5_err,
-                preds["move_joint"].shape[0]
-                * max(
-                    misc.get_num_gpus(cfg), 1
-                ),
-            )
-            val_meter.update_predictions(preds, labels)
-        elif cfg.LOCALIZATION.ENABLE:
-            loss, loss_in_parts, weight = losses.calculate_loss(cfg, preds, logits, labels, cur_epoch + cfg.TRAIN.NUM_FOLDS * float(cur_iter) / len(val_loader))
-            val_meter.iter_toc()
-            # Update and log stats.
-            val_meter.update_stats(
-                0, 0, inputs["video"].shape[0] if isinstance(inputs, dict) else inputs.shape[0]
-            )
-            loss_in_parts["loss"] = loss
-            val_meter.update_custom_stats(loss_in_parts)
-        else:
-            top1_err, top5_err = None, None
-            if isinstance(labels["supervised"], dict):
-                top1_err_all = {}
-                top5_err_all = {}
-                num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 4))
-                balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
-                for k, v in num_topks_correct.items():
-                    # Compute the errors.
-                    top1_err_split, top5_err_split = [
-                        (1.0 - x / b) * 100.0 for x in v
-                    ]
-
-                    # Gather all the predictions across all the devices.
-                    if misc.get_num_gpus(cfg) > 1:
-                        top1_err_split, top5_err_split = du.all_reduce(
-                            [top1_err_split, top5_err_split]
-                        )
-
-                    # Copy the stats from GPU to CPU (sync point).
-                    top1_err_split, top5_err_split = (
-                        top1_err_split.item(),
-                        top5_err_split.item(),
-                    )
-                    if "joint" not in k:
-                        top1_err_all["top1_err_"+k] = top1_err_split
-                        top5_err_all["top5_err_"+k] = top5_err_split
-                    else:
-                        top1_err = top1_err_split
-                        top5_err = top5_err_split
-                val_meter.update_custom_stats(balanced_acc)
-                val_meter.update_custom_stats(top1_err_all)
-                val_meter.update_custom_stats(top5_err_all)
-            else:
-                # Compute the errors.
-                num_topks_correct = metrics.topks_correct(preds, labels["supervised"], (1, 4))
-
-                # Combine the errors across the GPUs.
-                top1_err, top5_err = [
-                    (1.0 - x / preds.size(0)) * 100.0 for x in num_topks_correct
-                ]
-                if misc.get_num_gpus(cfg) > 1:
-                    top1_err, top5_err = du.all_reduce([top1_err, top5_err])
-
-                # Copy the errors from GPU to CPU (sync point).
-                top1_err, top5_err = top1_err.item(), top5_err.item()
-
-            val_meter.iter_toc()
-            # Update and log stats.
-            val_meter.update_stats(
-                top1_err,
-                top5_err,
-                inputs[0].size(0)
-                * max(
-                    misc.get_num_gpus(cfg), 1
-                ),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
-            )
-
-            val_meter.update_predictions(preds, labels)
-
-        val_meter.log_iter_stats(cur_epoch, cur_iter)
-        val_meter.iter_tic()
-
-    # Log epoch stats.
-    val_meter.log_epoch_stats(cur_epoch)
-    val_meter.reset()
 
 def train(rank, cfg, world_size=1):
     """
@@ -342,12 +230,14 @@ def train(rank, cfg, world_size=1):
         load_dotenv(env_path)
         wandb.login(key=os.getenv("WANDB"))
         wandb_run = wandb.init(
+            # Set the wandb run name.
+            name=f"{cfg.WANDB.RUN_NAME}-{datetime.now().strftime('%m%d-%H%M')}",
             # Set the wandb entity where your project will be logged (generally your team name).
             entity=cfg.WANDB.ENTITY_NAME,
             # Set the wandb project where this run will be logged.
             project=cfg.WANDB.PROJECT_NAME,
             # Track hyperparameters and run metadata.
-            config=cfg.cfg_dict,
+            config=OmegaConf.to_container(cfg),
         )
         log_freq = cfg.WANDB.LOG_FREQUENCY if cfg.WANDB.LOG_FREQUENCY > 0 else 500
         wandb.watch(model, log="all", log_freq=log_freq)
@@ -402,6 +292,12 @@ def train(rank, cfg, world_size=1):
             with torch.no_grad():   
                 test_model(val_loader, model, val_meter, cfg)
             val_meter.reset()
+        if misc.reduce_undersampling(cfg, cur_epoch+cfg.TRAIN.NUM_FOLDS-1):
+            if cfg.TRAIN.UNDERSAMPLE.ENABLE:
+                cfg.TRAIN.RATE += cfg.TRAIN.UNDERSAMPLE.STEP
+                logger.info(f"Updated undersampling factor to {cfg.TRAIN.RATE}.")
+            cfg.TRAIN.UNDERSAMPLE.ENABLE = cfg.TRAIN.RATE < cfg.TRAIN.UNDERSAMPLE.FINAL_RATE
+            train_loader = build_loader(cfg, "train", rank, world_size)
 
     if model_bucket is not None:
         filename = os.path.join(cfg.OUTPUT_DIR, cfg.TRAIN.LOG_FILE)

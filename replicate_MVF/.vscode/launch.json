@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "--cfg configs/projects/tadaformer/soccer/continue_att_backbone.yaml"
+            "args": "-cn att_config experiment=start_att_backbone NUM_GPUS=1 WANDB.SYNC_ENABLE=false"
         },
         {
             "name": "Python Debugger: Test",

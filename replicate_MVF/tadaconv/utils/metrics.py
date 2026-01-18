@@ -96,7 +96,7 @@ def joint_topks_correct(preds, labels, ks):
     
     return topks_correct_all, b
 
-def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks: dict[str, int]) -> dict[str, torch.Tensor]:
+def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Tensor], ks: dict[str, list[int]]) -> dict[str, torch.Tensor]:
     """
     Computes the balanced accuracy.
     Args:
@@ -107,15 +107,15 @@ def balanced_accuracy(preds: dict[str, torch.Tensor], labels: dict[str, torch.Te
     dev = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
     for key, prediction in preds.items():
         per_class_acc = []
-        num_classes = ks[key]
         _, pred_classes = torch.max(prediction, dim=1)
         label = labels[key]
-        for c in range(num_classes):
+        for c, n_c in enumerate(ks[key]):
             class_mask = label == c
             if class_mask.sum() == 0:
                 continue
+            assert n_c > 0, f"Each class must have at least one sample. {key} class {c} has {n_c} samples."
             class_correct = (pred_classes[class_mask] == label[class_mask]).sum()
-            class_acc = class_correct.float() / class_mask.sum().float()
+            class_acc = class_correct.float() / n_c
             per_class_acc.append(class_acc)
         balanced_acc["bal_acc_" + key] = (torch.stack(per_class_acc).mean().to(dev) * 100.0)
     return balanced_acc

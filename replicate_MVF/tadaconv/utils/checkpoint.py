@@ -15,7 +15,7 @@ import torch
 import urllib
 import pickle
 import hashlib
-import numpy as np
+from omegaconf import OmegaConf
 from collections import OrderedDict
 
 import tadaconv.utils.bucket as bu
@@ -161,7 +161,7 @@ def save_checkpoint(path_to_job, model, model_ema, optimizer, epoch, cfg, model_
         "epoch": epoch,
         "model_state": normalized_sd,
         "optimizer_state": optimizer.state_dict(),
-        "cfg": cfg.dump(),
+        "cfg": OmegaConf.to_container(cfg),
     }
     if model_ema is not None:
         checkpoint["model_ema_state"] = model_ema.module.state_dict() if cfg.NUM_GPUS*cfg.NUM_SHARDS > 1 else model_ema.state_dict()

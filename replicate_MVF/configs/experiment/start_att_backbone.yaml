@@ -45,18 +45,19 @@ TRAIN:
   LOSS_FUNC: cross_entropy
   EVAL_PERIOD: 4
   NUM_FOLDS: 1
-  AUTO_RESUME: true
-  CHECKPOINT_PERIOD: 2
+  AUTO_RESUME: false
+  CHECKPOINT_PERIOD: 4
   CHECKPOINT_FILE_PATH: "/sc/home/konrad.goldenbaum/l14_clip_k710.pyth"
   CHECKPOINT_TYPE: pytorch
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
   ONLY_LINEAR: false
-  UNDERSAMPLE:
-    ENABLE: false
-    INITIAL_RATE: 4
+  UNDERSAMPLE: 
+    ENABLE: true
+    RATE: 4
     FINAL_RATE: 10
     STEP: 2
+    STEP_EPOCHS: 2
 
 OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att_posagg"
 
@@ -73,7 +74,7 @@ TEST:
   AUTOMATIC_MULTI_SCALE_TEST: true
 
 WANDB:
-  RUN_NAME: "Continue_Attention"
+  RUN_NAME: "Start_Attention"
   SYNC_ENABLE: true
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
