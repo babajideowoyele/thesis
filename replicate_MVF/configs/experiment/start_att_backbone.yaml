@@ -52,6 +52,12 @@ TRAIN:
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
   ONLY_LINEAR: false
+  UNDERSAMPLE: 
+    ENABLE: true
+    RATE: 4
+    FINAL_RATE: 10
+    STEP: 2
+    STEP_EPOCHS: 2
 
 OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att_posagg"
 

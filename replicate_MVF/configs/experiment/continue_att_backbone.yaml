@@ -2,7 +2,7 @@
 # Experiment: Continue training attention backbone
 # Stability: LOW - changes frequently per experiment
 
-NUM_GPUS: 1
+NUM_GPUS: 2
 
 DATA:
   NUM_INPUT_FRAMES: 16
@@ -52,8 +52,13 @@ TRAIN:
   CHECKPOINT_INFLATE: false
   FINE_TUNE: true
   ONLY_LINEAR: false
+  UNDERSAMPLE:
+    ENABLE: false
+    INITIAL_RATE: 4
+    FINAL_RATE: 10
+    STEP: 2
 
-OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att"
+OUTPUT_DIR: "/sc/home/konrad.goldenbaum/thesis/replicate_MVF/ckpts/att_posagg"
 
 TEST:
   ENABLE: true
@@ -69,7 +74,7 @@ TEST:
 
 WANDB:
   RUN_NAME: "Continue_Attention"
-  SYNC_ENABLE: false
+  SYNC_ENABLE: true
   ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
   PROJECT_NAME: "Thesis-Goldenbaum"
   LOG_FREQUENCY: 200

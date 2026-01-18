@@ -160,6 +160,19 @@ def get_model_stats(model, cfg, mode, use_train_input):
         count = None
     return count
 
+def reduce_undersampling(cfg, cur_epoch):
+    """
+    Determine whether to reduce undersampling at the current epoch.
+    Args:
+        cfg (Config): the global config object.
+        cur_epoch (int): current epoch.
+    """
+    if not cfg.TRAIN.UNDERSAMPLE.ENABLE:
+        return False
+    if (cur_epoch + 1) % cfg.TRAIN.UNDERSAMPLE.STEP_EPOCHS == 0:
+        return True
+    return False
+
 
 def log_model_info(model, cfg, use_train_input=True):
     """

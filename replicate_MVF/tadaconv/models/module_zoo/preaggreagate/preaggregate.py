@@ -40,6 +40,7 @@ class AttentionPooling(AttentionBased):
 
         input_resolution    = cfg.VIDEO.BACKBONE.INPUT_RES
         patch_size          = cfg.VIDEO.BACKBONE.PATCH_SIZE
+        self.TEMP = cfg.VIDEO.BACKBONE.PREAGGREGATE.TEMP
 
         self.patch_number = (input_resolution // patch_size) ** 2
         self.patch_axis = input_resolution // patch_size
@@ -81,7 +82,7 @@ class AttentionPooling(AttentionBased):
             x = x + self.positional_embedding.to(x.dtype)
             
         x = x.reshape(N, -1, C)
-        x = torch.softmax(self.MLP(x), dim=1).transpose(-1, -2) @ x
+        x = torch.softmax(self.MLP(x).transpose(-1, -2)*self.TEMP, dim=2) @ x
 
         return x.reshape(N, -1, H, W, C) + residual.unsqueeze(1)
         

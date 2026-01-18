@@ -64,6 +64,9 @@ def train_epoch(
     # despite of the frozen BN in the backbone.
     norm_train = False
     num_norms = 0
+    ks = {
+        i.lower(): n for i, n in cfg.DATA.FREQUENCIES.items() 
+        }
     for module in model.modules():
         if isinstance(module, (nn.BatchNorm1d)):
             num_norms += 1
@@ -133,7 +136,13 @@ def train_epoch(
             train_meter.update_custom_stats(loss_in_parts)
         else:
             assert isinstance(labels["supervised"], dict)
-            balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
+            ks = {
+                i.lower(): [0.0]*len(n) for i, n in cfg.DATA.FREQUENCIES.items()
+                }
+            for name, label in labels["supervised"].items():
+                for c in label:
+                    ks[name][c] += 1.0
+            balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks=ks)
             
             if misc.get_num_gpus(cfg) > 1:
                 loss_for_log = du.all_reduce([loss_for_log])[0].item()
@@ -283,6 +292,12 @@ def train(rank, cfg, world_size=1):
             with torch.no_grad():   
                 test_model(val_loader, model, val_meter, cfg)
             val_meter.reset()
+        if misc.reduce_undersampling(cfg, cur_epoch+cfg.TRAIN.NUM_FOLDS-1):
+            if cfg.TRAIN.UNDERSAMPLE.ENABLE:
+                cfg.TRAIN.RATE += cfg.TRAIN.UNDERSAMPLE.STEP
+                logger.info(f"Updated undersampling factor to {cfg.TRAIN.RATE}.")
+            cfg.TRAIN.UNDERSAMPLE.ENABLE = cfg.TRAIN.RATE < cfg.TRAIN.UNDERSAMPLE.FINAL_RATE
+            train_loader = build_loader(cfg, "train", rank, world_size)
 
     if model_bucket is not None:
         filename = os.path.join(cfg.OUTPUT_DIR, cfg.TRAIN.LOG_FILE)
