@@ -78,7 +78,13 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg):
                 top1_err_all = {}
                 top5_err_all = {}
                 num_topks_correct, b = metrics.joint_topks_correct(preds, labels["supervised"], (1, 4))
-                balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks={k: v.shape[1] for k, v in preds.items()})
+                ks = {
+                    i.lower(): [0.0]*len(n) for i, n in cfg.DATA.FREQUENCIES.items()
+                    }
+                for name, label in labels["supervised"].items():
+                    for c in label:
+                        ks[name][c] += 1.0
+                balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks=ks)
                 for k, v in num_topks_correct.items():
                     # Compute the errors.
                     top1_err_split, top5_err_split = [
