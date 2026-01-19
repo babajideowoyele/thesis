@@ -136,13 +136,9 @@ def train_epoch(
             train_meter.update_custom_stats(loss_in_parts)
         else:
             assert isinstance(labels["supervised"], dict)
-            ks = {
-                i.lower(): [0.0]*len(n) for i, n in cfg.DATA.FREQUENCIES.items()
-                }
-            for name, label in labels["supervised"].items():
-                for c in label:
-                    ks[name][c] += 1.0
-            balanced_acc = metrics.balanced_accuracy(preds, labels["supervised"], ks=ks)
+            
+            # Store raw predictions and labels for final balanced accuracy calculation
+            train_meter.update_predictions(preds, labels)
             
             if misc.get_num_gpus(cfg) > 1:
                 loss_for_log = du.all_reduce([loss_for_log])[0].item()
@@ -158,7 +154,6 @@ def train_epoch(
 
             train_meter.set_bad_examples(bad_examples)
 
-            train_meter.update_custom_stats(balanced_acc)
             train_meter.update_custom_stats(loss_in_parts)
             
 
@@ -179,7 +174,7 @@ def train_epoch(
         train_meter.iter_tic()
 
     # Log epoch stats.
-    train_meter.log_epoch_stats(cur_epoch+cfg.TRAIN.NUM_FOLDS-1)
+    train_meter.log_epoch_stats(cur_epoch+cfg.TRAIN.NUM_FOLDS-1, cfg)
     train_meter.reset()
 
 

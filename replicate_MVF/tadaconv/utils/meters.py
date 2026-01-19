@@ -545,6 +545,12 @@ class TrainMeter(object):
         # Number of misclassified examples.
         self.num_samples = 0
         self.opts = defaultdict(ScalarMeter)
+        # Store predictions and labels for final balanced accuracy calculation
+        self.all_preds = []
+        self.all_labels = []
+        # Store predictions and labels for final balanced accuracy calculation
+        self.all_preds = []
+        self.all_labels = []
 
     def reset(self):
         """
@@ -555,6 +561,10 @@ class TrainMeter(object):
         self.lr = None
         self.num_samples = 0
         self.opts = defaultdict(ScalarMeter)
+        self.all_preds = []
+        self.all_labels = []
+        self.all_preds = []
+        self.all_labels = []
         
 
     def iter_tic(self):
@@ -610,6 +620,11 @@ class TrainMeter(object):
                 v = v.item()
             assert isinstance(v, (float, int))
             self.opts[k].add_value(v)
+    
+    def update_predictions(self, preds, labels):
+        """Store predictions and labels for final balanced accuracy calculation."""
+        self.all_preds.append(preds)
+        self.all_labels.append(labels)
 
     def log_iter_stats(self, cur_epoch, cur_iter):
         """
@@ -642,11 +657,12 @@ class TrainMeter(object):
         if self.wandb is not None:
             self.wandb.log(stats)
 
-    def log_epoch_stats(self, cur_epoch):
+    def log_epoch_stats(self, cur_epoch, cfg=None):
         """
         Log the stats of the current epoch.
         Args:
             cur_epoch (int): the number of current epoch.
+            cfg: configuration object for calculating balanced accuracy.
         """
         eta_sec = self.iter_timer.seconds() * (
             self.MAX_EPOCH - (cur_epoch + 1) * self.epoch_iters
@@ -661,8 +677,48 @@ class TrainMeter(object):
             "gpu_mem": "{:.2f} GB".format(misc.gpu_mem_usage()),
             "RAM": "{:.2f}/{:.2f} GB".format(*misc.cpu_mem_usage()),
         }
-        for k,v in self.opts.items():
-            stats[k] = v.get_global_avg()
+        
+        # Calculate balanced accuracy from accumulated predictions if available
+        if self.all_preds and self.all_labels and cfg is not None:
+            # Concatenate all predictions and labels
+            all_preds_dict = {}
+            all_labels_dict = {}
+            
+            for preds_batch in self.all_preds:
+                for k, v in preds_batch.items():
+                    if k not in all_preds_dict:
+                        all_preds_dict[k] = []
+                    all_preds_dict[k].append(v)
+            
+            for labels_batch in self.all_labels:
+                for k, v in labels_batch["supervised"].items():
+                    if k not in all_labels_dict:
+                        all_labels_dict[k] = []
+                    all_labels_dict[k].append(v)
+            
+            # Concatenate tensors
+            for k in all_preds_dict:
+                all_preds_dict[k] = torch.cat(all_preds_dict[k], dim=0)
+            for k in all_labels_dict:
+                all_labels_dict[k] = torch.cat(all_labels_dict[k], dim=0)
+            
+            # Calculate global class frequencies
+            from tadaconv.utils import metrics
+            ks = {i.lower(): [0.0]*len(n) for i, n in cfg.DATA.FREQUENCIES.items()}
+            for name, label in all_labels_dict.items():
+                for c in label:
+                    ks[name][c.item()] += 1.0
+            
+            # Calculate final balanced accuracy
+            bal_acc = metrics.balanced_accuracy(all_preds_dict, all_labels_dict, ks=ks)
+            for k, v in bal_acc.items():
+                stats[f"epoch_bal_acc_{k}"] = v.item() if hasattr(v, 'item') else v
+            stats["epoch_joint_bal_acc"] = torch.mean(torch.stack([bal_acc[k] for k in bal_acc.keys()])).item()
+        else:
+            # Fallback to averaged per-iteration balanced accuracy
+            for k,v in self.opts.items():
+                stats[k] = v.get_global_avg()
+        
         if not self._cfg.PRETRAIN.ENABLE:
             avg_loss = self.loss_total / self.num_samples
             stats["loss"] = avg_loss
@@ -833,9 +889,13 @@ class TestMeter(object):
         self.iter_timer = Timer()
         self.total_iters = total_iters
         self.aggregation = {}
+        self.all_preds = []
+        self.all_labels = []
 
     def reset(self):
         self.aggregation = {}
+        self.all_preds = []
+        self.all_labels = []
         self.iter_timer.reset() 
         self.total_iters = 0
 
@@ -871,14 +931,76 @@ class TestMeter(object):
 
     def update_aggregation(self, measurements: dict[str, torch.Tensor]):
         for k, v in measurements.items():
-            self.aggregation.get(k, []).append(v)
+            if k not in self.aggregation:
+                self.aggregation[k] = []
+            self.aggregation[k].append(v)
+    
+    def update_predictions(self, preds, labels):
+        """Store raw predictions and labels for final metric calculation."""
+        self.all_preds.append(preds)
+        self.all_labels.append(labels)
         
-    def log_test(self):
-        for k in self.aggregation:
-            self.aggregation[k] = torch.mean(torch.stack(self.aggregation[k])).item()
+    def log_test(self, cfg):
+        """
+        Log the final aggregated test results.
+        Calculates balanced accuracy from all accumulated predictions and labels.
+        """
+        final_stats = {}
+        
+        # Calculate mean of other aggregated measurements
+        for k, v_list in self.aggregation.items():
+            if len(v_list) > 0 and not k.startswith('bal_acc') and not k.startswith('acc_'):
+                stacked = torch.stack(v_list)
+                final_stats[k] = torch.mean(stacked).item()
+        
+        # Calculate balanced accuracy from all predictions and labels
+        if self.all_preds and self.all_labels:
+            # Concatenate all predictions and labels
+            all_preds_dict = {}
+            all_labels_dict = {}
+            
+            for preds_batch in self.all_preds:
+                for k, v in preds_batch.items():
+                    if k not in all_preds_dict:
+                        all_preds_dict[k] = []
+                    all_preds_dict[k].append(v)
+            
+            for labels_batch in self.all_labels:
+                for k, v in labels_batch["supervised"].items():
+                    if k not in all_labels_dict:
+                        all_labels_dict[k] = []
+                    all_labels_dict[k].append(v)
+            
+            # Concatenate tensors
+            for k in all_preds_dict:
+                all_preds_dict[k] = torch.cat(all_preds_dict[k], dim=0)
+            for k in all_labels_dict:
+                all_labels_dict[k] = torch.cat(all_labels_dict[k], dim=0)
+            
+            # Calculate global class frequencies
+            from tadaconv.utils import metrics
+            ks = {i.lower(): [0.0]*len(n) for i, n in cfg.DATA.FREQUENCIES.items()}
+            for name, label in all_labels_dict.items():
+                for c in label:
+                    ks[name][c.item()] += 1.0
+            
+            # Calculate final balanced accuracy and regular accuracy
+            bal_acc = metrics.balanced_accuracy(all_preds_dict, all_labels_dict, ks=ks)
+            acc = metrics.accuracy(all_preds_dict, all_labels_dict, 
+                                 ks={k: v.shape[1] for k, v in all_preds_dict.items()})
+            
+            # Add to final stats
+            for k, v in bal_acc.items():
+                final_stats[f"bal_acc_{k}"] = v.item() if hasattr(v, 'item') else v
+            for k, v in acc.items():
+                final_stats[f"acc_{k}"] = v.item() if hasattr(v, 'item') else v
+            
+            # Calculate joint accuracy
+            final_stats["joint_bal_acc"] = torch.mean(torch.stack([bal_acc[k] for k in bal_acc.keys()])).item()
+        
         if self.wandb is not None:
-            self.wandb.log(self.aggregation)
-        logging.log_json_stats(self.aggregation)
+            self.wandb.log(final_stats)
+        logging.log_json_stats({"_type": "test_final", **final_stats})
 
         
 
