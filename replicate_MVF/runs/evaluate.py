@@ -170,37 +170,15 @@ def test_model(test_loader, model, test_meter: TestMeter, cfg):
         preds, logits = model(inputs, masks)
 
         assert isinstance(labels["supervised"], dict)
-        acc = metrics.accuracy(
-            preds, labels["supervised"], 
-            ks={k: v.shape[1] for k, v in preds.items()})
-        bal_acc = metrics.balanced_accuracy(
-            preds, labels["supervised"], 
-            ks={k: v.shape[1] for k, v in preds.items()})
         
-        # Gather all the predictions across all the devices.
-        if misc.get_num_gpus(cfg) > 1:
-            for k in bal_acc.keys():
-                bal_acc[k] = du.all_reduce([bal_acc[k]])[0]
-            for k in acc.keys():
-                acc[k] = du.all_reduce([acc[k]])[0]
-    
-        bal_acc["joint_acc"] = torch.mean(torch.stack([bal_acc[k] for k in bal_acc.keys()]))
-        for k in acc.keys():
-            bal_acc["acc_"+k] = acc[k]
-
+        # Store raw predictions and labels for final calculation
+        test_meter.update_predictions(preds, labels)
 
         test_meter.iter_toc()
-        # Update and log stats.
-        test_meter.log_stats(
-            bal_acc,
-            cur_iter,
-        )
-
-        test_meter.update_aggregation(bal_acc)
         test_meter.iter_tic()
 
     # Log epoch stats.
-    test_meter.log_test()
+    test_meter.log_test(cfg)
 
 def evaluate(rank, cfg, world_size=1):
     """
