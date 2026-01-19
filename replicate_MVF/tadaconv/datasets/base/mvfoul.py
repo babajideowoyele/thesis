@@ -93,7 +93,12 @@ class Mvfoul(torch.utils.data.Dataset):
         self.meta_data = {e: len(os.listdir(os.path.join(self.data_root_dir, e))) for e in self.dirs}
 
     def __len__(self):
-        return len(self.labels) if not self.overfit else len(self.overfit_labels) 
+        if not self.overfit:
+            if self.split == "train" and self.cfg.DATA.SUBSAMPLE.ENABLE:
+                return sum([1 for w in self.get_weights() if w > 0])
+            return len(self.labels)
+        else:
+            return len(self.overfit_labels)
 
     def __getitem__(self, index):
         if not self.overfit:

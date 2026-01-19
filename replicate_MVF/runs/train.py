@@ -294,9 +294,9 @@ def train(rank, cfg, world_size=1):
             val_meter.reset()
         if misc.reduce_undersampling(cfg, cur_epoch+cfg.TRAIN.NUM_FOLDS-1):
             if cfg.TRAIN.UNDERSAMPLE.ENABLE:
-                cfg.TRAIN.RATE += cfg.TRAIN.UNDERSAMPLE.STEP
-                logger.info(f"Updated undersampling factor to {cfg.TRAIN.RATE}.")
-            cfg.TRAIN.UNDERSAMPLE.ENABLE = cfg.TRAIN.RATE < cfg.TRAIN.UNDERSAMPLE.FINAL_RATE
+                cfg.TRAIN.UNDERSAMPLE.RATE += cfg.TRAIN.UNDERSAMPLE.STEP
+                logger.info(f"Updated undersampling factor to {cfg.TRAIN.UNDERSAMPLE.RATE}.")
+            cfg.TRAIN.UNDERSAMPLE.ENABLE = cfg.TRAIN.UNDERSAMPLE.RATE < cfg.TRAIN.UNDERSAMPLE.FINAL_RATE
             train_loader = build_loader(cfg, "train", rank, world_size)
 
     if model_bucket is not None:
