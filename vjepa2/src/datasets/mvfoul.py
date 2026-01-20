@@ -11,17 +11,14 @@ import cv2
 from torchvision.transforms import Compose, v2
 import torchvision.transforms as transforms
 import torch
-from tadaconv.datasets.utils.random_erasing import RandomErasing
-from tadaconv.datasets.utils.transformations import KineticsResizedCrop
-import tadaconv.utils.logging as logging
-from tadaconv.datasets.base.builder import DATASET_REGISTRY
-from tadaconv.utils.mvfoul_translation import translate_annotation, ActionClass
+from datasets.utils.video.randerase import RandomErasing
+from datasets.utils.video.transforms import RandomResizedCropAndInterpolation
+from utils.logging import get_logger
+from datasets.utils.mvfoul_translations import translate_annotation, ActionClass
 
-logger = logging.get_logger(__name__)
-
+logger = get_logger(__name__)
 
 
-@DATASET_REGISTRY.register()
 class Mvfoul(torch.utils.data.Dataset):
     def __init__(self, cfg, split):
         super(Mvfoul, self).__init__() 
@@ -192,7 +189,7 @@ class Mvfoul(torch.utils.data.Dataset):
 
 
         vid.release()
-        selected = torch.stack([torch.from_numpy(frame) for frame in frames])
+        selected: torch.Tensor = torch.stack([torch.from_numpy(frame) for frame in frames])
         
         if not self.cfg.PRETRAIN.ENABLE:
             selected = self.transform(selected.permute(0, 3, 1, 2))  #  C, T, H, W
@@ -279,10 +276,10 @@ class Mvfoul(torch.utils.data.Dataset):
                         ratio=self.cfg.AUGMENTATION.RATIO
                     ),]
             else:
-                std_transform_list += [KineticsResizedCrop(
-                    short_side_range = [self.cfg.DATA.TRAIN_JITTER_SCALES[0], self.cfg.DATA.TRAIN_JITTER_SCALES[1]],
-                    crop_size = self.cfg.DATA.TRAIN_CROP_SIZE,
-                ),]
+                std_transform_list += [RandomResizedCropAndInterpolation(
+                    size=self.cfg.DATA.TRAIN_CROP_SIZE,
+                    scale=self.cfg.DATA.TRAIN_JITTER_SCALES,
+                    ),]
 
             if self.cfg.AUGMENTATION.COLOR_AUG:
                 color_jitter = v2.ColorJitter(
