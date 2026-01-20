@@ -1,0 +1,36 @@
+dataset_type: Mvfoul
+
+ROOT_DIR:
+NUM_INPUT_FRAMES: 16
+TAKE_NUM_FRAMES: 16
+TRAIN_CROP_SIZE: 256
+TEST_CROP_SIZE: 256
+CENTER_FRAME: 75
+SAMPLING_RATE: 4
+PRETRAIN:
+  ENABLE: false
+AUGMENTATION:
+  AUTOAUGMENT: true
+  RANDOM_FLIP: true
+  COLOR_JITTER: true
+  GRAYSCALE: true
+  GAUSSIAN_BLUR: true
+  SOLARIZATION: true
+UNDERSAMPLE:
+  ENABLE: false
+  RATE: 4
+NUM_VIEWS: 4
+datasets_weights:
+  - 0.5
+  - 0.5
+batch_size: 24
+crop_size: 256
+patch_size: 16
+dataset_fpcs:
+  - 16
+  - 16
+tubelet_size: 2
+fps: 4
+num_workers: 8
+persistent_workers: true
+pin_mem: true

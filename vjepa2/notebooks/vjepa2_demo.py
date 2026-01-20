@@ -16,7 +16,7 @@ from transformers import AutoModel, AutoVideoProcessor
 import src.datasets.utils.video.transforms as video_transforms
 import src.datasets.utils.video.volume_transforms as volume_transforms
 from src.models.attentive_pooler import AttentiveClassifier
-from src.models.vision_transformer import vit_giant_xformers_rope
+from src.models.vision_transformer import vit_giant_xformers_rope, vit_large_rope
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
@@ -99,10 +99,10 @@ def get_vjepa_video_classification_results(classifier, out_patch_features_pt):
 def run_sample_inference():
     # HuggingFace model repo name
     hf_model_name = (
-        "facebook/vjepa2-vitg-fpc64-384"  # Replace with your favored model, e.g. facebook/vjepa2-vitg-fpc64-384
+        "facebook/vjepa2-vitl-fpc64-256"  # Replace with your favored model, e.g. facebook/vjepa2-vitg-fpc64-384
     )
     # Path to local PyTorch weights
-    pt_model_path = "YOUR_MODEL_PATH"
+    pt_model_path = "/sc/home/konrad.goldenbaum/models/vitl.pt"
 
     sample_video_path = "sample_video.mp4"
     # Download the video if not yet downloaded to local path
@@ -120,8 +120,9 @@ def run_sample_inference():
     hf_transform = AutoVideoProcessor.from_pretrained(hf_model_name)
     img_size = hf_transform.crop_size["height"]  # E.g. 384, 256, etc.
 
-    # Initialize the PyTorch model, load pretrained weights
-    model_pt = vit_giant_xformers_rope(img_size=(img_size, img_size), num_frames=64)
+    # Initialize the PyTorch model, load pretrai
+    # ned weights
+    model_pt = vit_large_rope(img_size=(img_size, img_size), num_frames=64)
     model_pt.cuda().eval()
     load_pretrained_vjepa_pt_weights(model_pt, pt_model_path)
 
@@ -144,7 +145,7 @@ def run_sample_inference():
     )
 
     # Initialize the classifier
-    classifier_model_path = "YOUR_ATTENTIVE_PROBE_PATH"
+    classifier_model_path = "/sc/home/konrad.goldenbaum/models/ssv2-vitl-16x2x3.pt"
     classifier = (
         AttentiveClassifier(embed_dim=model_pt.embed_dim, num_heads=16, depth=4, num_classes=174).cuda().eval()
     )
