@@ -100,7 +100,7 @@ class VJEPAEmbeddingExtractor:
             
             # Sample frames uniformly to get self.num_frames frames
             frame_indices = np.linspace(0, total_frames - 1, self.num_frames, dtype=int)
-            video = vr.get_batch(frame_indices).asnumpy()  # (T, H, W, C)
+            video = vr.get_batch(frame_indices)  # (T, H, W, C)
             
             return video
         except Exception as e:
@@ -108,7 +108,7 @@ class VJEPAEmbeddingExtractor:
             return None
     
     @torch.no_grad()
-    def extract_embeddings(self, video: np.ndarray) -> torch.Tensor:
+    def extract_embeddings(self, video: torch.Tensor) -> torch.Tensor:
         """
         Extract patch-wise embeddings from video.
         
@@ -122,7 +122,7 @@ class VJEPAEmbeddingExtractor:
             return None
         
         # Convert to torch and reorder to (T, C, H, W)
-        video_tensor = torch.from_numpy(video).permute(0, 3, 1, 2).float()
+        video_tensor = video.permute(0, 3, 1, 2).float()
         
         # Apply transform
         video_tensor = self.transform(video_tensor)
@@ -181,17 +181,19 @@ class MVFoulEmbeddingPreparator:
     def prepare(self) -> Dict[int, Dict[str, Any]]:
         """
         Prepare embeddings for all videos in the dataset.
+        Each video angle is treated as a separate instance.
         
         Returns:
             Dictionary mapping index to {label, features}
         """
         embeddings_dict = {}
+        global_idx = 0
         
         desc = f"Processing {self.split} split ({self.cfg.model.variant})"
-        for idx, action_dir in enumerate(tqdm(self.action_dirs, desc=desc)):
+        for action_idx, action_dir in enumerate(tqdm(self.action_dirs, desc=desc)):
             try:
                 # Get label
-                annotation = self.annotations[idx]
+                annotation = self.annotations[action_idx]
                 label = annotation["type"]
                 
                 # Get videos from the action directory
@@ -205,45 +207,54 @@ class MVFoulEmbeddingPreparator:
                         raise ValueError(f"No videos in {action_path}")
                     continue
                 
-                # Load videos as video
-                video = self._load_videos_as_video(action_path, video_files)
+                # Process each video angle as a separate instance
+                for angle_idx, video_file in enumerate(video_files):
+                    video_path = os.path.join(action_path, video_file)
+                    
+                    # Load video
+                    video = self.extractor.load_video(video_path)
+                    
+                    if video is None:
+                        if not self.cfg.processing.skip_errors:
+                            raise ValueError(f"Failed to load video from {video_path}")
+                        continue
+                    
+                    # Extract embeddings
+                    embeddings = self.extractor.extract_embeddings(video)
+                    
+                    if embeddings is None:
+                        if not self.cfg.processing.skip_errors:
+                            raise ValueError(f"Failed to extract embeddings from {video_path}")
+                        continue
+                    
+                    # Pool embeddings
+                    if self.cfg.embedding.pooling == "mean":
+                        pooled_embeddings = embeddings.mean(dim=0)
+                    elif self.cfg.embedding.pooling == "max":
+                        pooled_embeddings = embeddings.max(dim=0)[0]
+                    elif self.cfg.embedding.pooling == "none":
+                        pooled_embeddings = embeddings
+                    else:
+                        raise ValueError(f"Unknown pooling: {self.cfg.embedding.pooling}")
+                    
+                    # Store in dictionary with global index
+                    embeddings_dict[global_idx] = {
+                        "label": label,
+                        "features": pooled_embeddings,
+                        "action_class": ActionClass(label).name,
+                        "action_dir": action_dir,
+                        "video_file": video_file,
+                        "angle": angle_idx,
+                    }
+                    
+                    global_idx += 1
                 
-                if video is None:
-                    if not self.cfg.processing.skip_errors:
-                        raise ValueError(f"Failed to load video from {action_path}")
-                    continue
-                
-                # Extract embeddings
-                embeddings = self.extractor.extract_embeddings(video)
-                
-                if embeddings is None:
-                    if not self.cfg.processing.skip_errors:
-                        raise ValueError(f"Failed to extract embeddings")
-                    continue
-                
-                # Pool embeddings
-                if self.cfg.embedding.pooling == "mean":
-                    pooled_embeddings = embeddings.mean(dim=0)
-                elif self.cfg.embedding.pooling == "max":
-                    pooled_embeddings = embeddings.max(dim=0)[0]
-                elif self.cfg.embedding.pooling == "none":
-                    pooled_embeddings = embeddings
-                else:
-                    raise ValueError(f"Unknown pooling: {self.cfg.embedding.pooling}")
-                
-                # Store in dictionary
-                embeddings_dict[idx] = {
-                    "label": label,
-                    "features": pooled_embeddings,
-                    "action_class": ActionClass(label).name,
-                }
-                
-                if self.verbose and (idx + 1) % self.cfg.processing.log_interval == 0:
-                    print(f"  Processed {idx + 1}/{len(self.action_dirs)} videos")
+                if self.verbose and (action_idx + 1) % self.cfg.processing.log_interval == 0:
+                    print(f"  Processed {action_idx + 1}/{len(self.action_dirs)} action dirs")
                 
             except Exception as e:
                 if self.verbose:
-                    print(f"⚠ Error processing {action_dir} (idx={idx}): {e}")
+                    print(f"⚠ Error processing {action_dir} (idx={action_idx}): {e}")
                 if not self.cfg.processing.skip_errors:
                     raise
                 continue
