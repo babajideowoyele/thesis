@@ -16,6 +16,7 @@ Usage:
     python app/prepare_embeddings.py --config-name embedding_prepare
 """
 
+import ast
 import json
 import os
 from pathlib import Path
@@ -28,11 +29,12 @@ from decord import VideoReader
 from tqdm import tqdm
 from omegaconf import DictConfig, OmegaConf
 import hydra
+from sklearn.cluster import KMeans
 
 import src.datasets.utils.video.transforms as video_transforms
 import src.datasets.utils.video.volume_transforms as volume_transforms
 from src.models.vision_transformer import vit_large_rope, vit_giant_xformers_rope
-from src.datasets.utils.mvfoul_translations import ActionClass
+from src.datasets.utils.mvfoul_translations import ActionClass, translate_annotation
 
 
 
@@ -49,8 +51,8 @@ class VJEPAEmbeddingExtractor:
         self.img_size = cfg.model.img_size
         self.model_variant = cfg.model.variant
         self.verbose = cfg.output.verbose
-        self.IMAGENET_DEFAULT_MEAN = cfg.data.IMAGENET_DEFAULT_MEAN
-        self.IMAGENET_DEFAULT_STD = cfg.data.IMAGENET_DEFAULT_STD
+        self.IMAGENET_DEFAULT_MEAN: tuple[float] = ast.literal_eval(cfg.dataset.IMAGENET_DEFAULT_MEAN)
+        self.IMAGENET_DEFAULT_STD: tuple[float] = ast.literal_eval(cfg.dataset.IMAGENET_DEFAULT_STD)
         
         # Initialize model
         if cfg.model.variant == "vitl":
@@ -102,7 +104,7 @@ class VJEPAEmbeddingExtractor:
             frame_indices = np.linspace(0, total_frames - 1, self.num_frames, dtype=int)
             video = vr.get_batch(frame_indices)  # (T, H, W, C)
             
-            return video
+            return torch.from_numpy(video.asnumpy())  # Convert to torch.Tensor
         except Exception as e:
             print(f"Error loading video {video_path}: {e}")
             return None
@@ -176,7 +178,7 @@ class MVFoulEmbeddingPreparator:
         
         # Get action directories
         entries_unordered = os.listdir(split_dir)
-        self.action_dirs = sorted([e for e in entries_unordered if e.startswith("action_")])
+        self.action_dirs = ["action_" + str(e) for e in range( len(entries_unordered) ) if os.path.isdir(os.path.join(split_dir, "action_" + str(e)))]
     
     def prepare(self) -> Dict[int, Dict[str, Any]]:
         """
@@ -193,8 +195,8 @@ class MVFoulEmbeddingPreparator:
         for action_idx, action_dir in enumerate(tqdm(self.action_dirs, desc=desc)):
             try:
                 # Get label
-                annotation = self.annotations[action_idx]
-                label = annotation["type"]
+                annotation = self.annotations[str(action_idx)]
+                label = translate_annotation(annotation)["type"]
                 
                 # Get videos from the action directory
                 action_path = os.path.join(self.split_dir, action_dir)
@@ -232,6 +234,10 @@ class MVFoulEmbeddingPreparator:
                         pooled_embeddings = embeddings.mean(dim=0)
                     elif self.cfg.embedding.pooling == "max":
                         pooled_embeddings = embeddings.max(dim=0)[0]
+                    elif self.cfg.embedding.pooling == "kmeans":
+                        kmeans = KMeans(n_clusters=self.cfg.embedding.kmeans_clusters, random_state=0)
+                        kmeans.fit(embeddings.numpy())
+                        pooled_embeddings = torch.from_numpy(kmeans.cluster_centers_.mean(axis=0))
                     elif self.cfg.embedding.pooling == "none":
                         pooled_embeddings = embeddings
                     else:
