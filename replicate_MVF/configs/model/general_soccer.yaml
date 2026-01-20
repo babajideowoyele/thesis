@@ -22,7 +22,7 @@ VIDEO:
     REQUIRE_PROJ: false
     ATTN_MASK_ENABLE: false
     DOUBLE_TADA: false
-    FREEZE: true
+    FREEZE: false
     REDUCTION: 2
     BRANCH:
       NAME: TAdaFormerBlock
