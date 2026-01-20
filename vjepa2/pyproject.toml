@@ -1,0 +1,39 @@
+[project]
+name = "thesis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beartype>=0.22.9",
+    "braceexpand>=0.1.7",
+    "einops>=0.8.1",
+    "fire>=0.7.1",
+    "ftfy>=6.3.1",
+    "h5py>=3.15.1",
+    "iopath>=0.1.10",
+    "jupyter>=1.1.1",
+    "numpy>=2.4.1",
+    "opencv-python>=4.13.0.90",
+    "pandas>=2.3.3",
+    "peft>=0.18.1",
+    "psutil>=7.2.1",
+    "python-box>=7.3.2",
+    "pyyaml>=6.0.3",
+    "scikit-image>=0.26.0",
+    "submitit>=1.5.4",
+    "tensorboard>=2.20.0",
+    "timm>=1.0.24",
+    "torch>=2",
+    "torchvision>=0.24.1",
+    "transformers>=4.57.6",
+    "wandb>=0.24.0",
+    "webdataset>=1.0.2",
+]
+
+[tool.isort]
+profile="black"
+line_length=119
+
+[tool.black]
+line-length = 119
