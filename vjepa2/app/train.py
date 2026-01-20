@@ -5,4 +5,9 @@ def train_epoch(model, rank, cfg, data):
     for (feature, mask), label in data:
         pred = model(feature, mask)
 
-        loss = 
+        loss = ...
+
+
+def train(cfg, rank=0, world_size=1):
+    ...
+

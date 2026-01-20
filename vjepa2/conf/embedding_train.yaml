@@ -1,0 +1,66 @@
+# Configuration for training classifier on precomputed embeddings
+# Usage: python app/train_classifier_on_embeddings.py
+
+defaults:
+  - _self_
+
+# Embeddings configuration
+embeddings:
+  train_path: ./embeddings/mvfoul_train_embeddings.pt
+  val_path: ./embeddings/mvfoul_val_embeddings.pt
+
+# Model configuration
+model:
+  embedding_dim: 1024  # Will be auto-detected from embeddings
+  num_classes: 9      # Will be auto-detected from embeddings
+  hidden_dim: 512
+  dropout: 0.1
+  num_layers: 2
+
+# Training configuration
+training:
+  num_epochs: 50
+  batch_size: 64
+  learning_rate: 1e-3
+  weight_decay: 1e-4
+  optimizer: adam  # adam or sgd
+  
+  # Scheduler
+  scheduler:
+    name: cosine  # cosine, step, or none
+    warmup_epochs: 5
+    min_lr: 1e-6
+
+# Data configuration
+data:
+  val_split: 0.2  # Validation split if not using val_path
+  num_workers: 4
+  pin_memory: true
+  shuffle: true
+  IMAGENET_DEFAULT_MEAN: (0.485, 0.456, 0.406)
+  IMAGENET_DEFAULT_STD: (0.229, 0.224, 0.225)
+
+# Optimization
+optimization:
+  device: cuda  # cuda or cpu
+  mixed_precision: false
+  gradient_clip: null
+
+# Logging and checkpointing
+logging:
+  output_dir: ./checkpoints
+  log_interval: 10  # Print every N batches
+  save_interval: 10  # Save checkpoint every N epochs
+  verbose: true
+
+# Meta settings
+meta:
+  seed: 42
+  deterministic: false
+
+WANDB:
+  SYNC_ENABLE: true
+  PROJECT_NAME: "Thesis-Goldenbaum"
+  ENTITY_NAME: "konradgoldenbaum-hasso-plattner-institut"
+  RUN_NAME: embedding_classifier_run
+  LOG_FREQUENCY: 200

@@ -1,0 +1,36 @@
+# Configuration for preparing VJEPA embeddings
+# Usage: python app/prepare_embeddings.py
+
+defaults:
+  - _self_
+
+# Model configuration
+model:
+  variant: vitl  # vitl or vitg
+  img_size: 256  # 256 for vitl, 384 for vitg
+  num_frames: 64
+  pretrained_path: /path/to/vitl.pt  # Will be overridden by command line
+
+# Dataset configuration
+dataset:
+  name: mvfoul
+  root_dir: /path/to/mvfoul
+  split: train  # train or val
+
+# Embedding extraction settings
+embedding:
+  pooling: mean  # mean, max, or none (keep all frames)
+  device: cuda  # cuda or cpu
+  batch_size: 1  # Single video at a time
+  num_workers: 0
+
+# Output configuration
+output:
+  dir: ./embeddings
+  save_format: pytorch  # pytorch only
+  verbose: true
+
+# Processing
+processing:
+  skip_errors: true  # Skip videos with errors
+  log_interval: 10  # Print progress every N videos

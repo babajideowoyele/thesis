@@ -1,0 +1,47 @@
+# Configuration for VJEPA embedding preparation on MVFoul dataset
+# This enables fast training of downstream classifiers
+
+# Model configuration
+model:
+  variant: vitl  # Options: vitl (large) or vitg (giant)
+  img_size: 256  # Input image size (256 for ViT-L, 384 for ViT-G)
+  num_frames: 64  # Number of frames to use
+  pretrained_path: /path/to/vitl.pt  # Path to pretrained weights
+
+# Dataset configuration
+dataset:
+  name: mvfoul
+  root_dir: /path/to/mvfoul
+  splits:
+    - train
+    - val
+
+# Embedding extraction
+embedding:
+  pooling: mean  # Options: mean, last, all (keep per-frame)
+  save_format: pytorch  # Save as .pt checkpoint format
+
+# Output configuration
+output:
+  dir: ./embeddings
+  naming: mvfoul_{split}_embeddings.pt
+  config_naming: mvfoul_{split}_config.json
+
+# Classes mapping (9 action classes in MVFoul)
+classes:
+  0: holding
+  1: tackling
+  2: standingtackling
+  3: elbowing
+  4: pushing
+  5: challenge
+  6: dive
+  7: highleg
+  8: noaction
+
+# Processing
+processing:
+  device: cuda
+  batch_size: 32
+  num_workers: 4
+  verbose: true
