@@ -1,0 +1,18 @@
+dataset_type: VideoDataset
+datasets:
+  - /path/to/dataset1.csv
+  - /path/to/dataset2.csv
+datasets_weights:
+  - 0.5
+  - 0.5
+batch_size: 24
+crop_size: 256
+patch_size: 16
+dataset_fpcs:
+  - 16
+  - 16
+tubelet_size: 2
+fps: 4
+num_workers: 8
+persistent_workers: true
+pin_mem: true

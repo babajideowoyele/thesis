@@ -1,0 +1,20 @@
+# SSv2 video evaluation configuration
+eval_name: video_classification_frozen
+folder: /tmp/vjepa_evals/ssv2
+tag: ssv2-eval
+
+model_kwargs:
+  checkpoint: null
+  pretrain_kwargs:
+    encoder:
+      model_name: vit_large
+
+experiment:
+  data:
+    dataset_name: SSv2
+    root_path: /datasets/
+    num_classes: 174
+    batch_size: 16
+
+val_only: false
+use_fsdp: false

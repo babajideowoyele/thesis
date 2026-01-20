@@ -1,0 +1,29 @@
+# Main configuration file for V-JEPA2 training
+defaults:
+  - data: video_default
+  - model: vitl16_default
+  - optimization: default
+  - mask: default
+
+app: vjepa
+
+# Distributed training settings
+nodes: 1
+tasks_per_node: 1
+cpus_per_task: 8
+mem_per_gpu: 40G
+
+# Output folder
+folder: /tmp/vjepa_output
+
+# Meta settings
+meta:
+  dtype: float32  # bfloat16, float16, or float32
+  eval_freq: 100
+  load_checkpoint: false
+  read_checkpoint: null
+  save_every_freq: 50
+  seed: 239
+  use_sdpa: false
+  sync_gc: false
+  skip_batches: -1

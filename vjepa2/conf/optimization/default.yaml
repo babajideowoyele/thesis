@@ -1,0 +1,15 @@
+lr: 0.0005
+start_lr: 0.0001
+final_lr: 0.00005
+weight_decay: 0.04
+final_weight_decay: 0.04
+ema: [0.999, 0.999]
+betas: [0.9, 0.999]
+eps: 1.0e-8
+warmup: 40
+epochs: 100
+ipe: null
+ipe_scale: 1.0
+is_anneal: false
+anneal_ckpt: null
+resume_anneal: false

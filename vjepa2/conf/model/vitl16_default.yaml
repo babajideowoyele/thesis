@@ -1,0 +1,14 @@
+# ViT-Large 16x16 configuration
+model_name: vit_large
+pred_depth: 12
+pred_embed_dim: 384
+pred_num_heads: 12
+compile_model: false
+use_activation_checkpointing: true
+uniform_power: false
+use_mask_tokens: false
+zero_init_mask_tokens: true
+use_rope: false
+use_silu: false
+use_pred_silu: false
+wide_silu: true

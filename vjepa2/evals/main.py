@@ -3,51 +3,23 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-import argparse
 import multiprocessing as mp
 import os
 import pprint
+from pathlib import Path
 
-import yaml
+from hydra import main as hydra_main
+from omegaconf import DictConfig, OmegaConf
 
 from evals.scaffold import main as eval_main
 from src.utils.distributed import init_distributed
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--val_only", action="store_true", help="only run eval", default=False)
-parser.add_argument("--fname", type=str, help="name of config file to load", default="configs.yaml")
-parser.add_argument(
-    "--devices",
-    type=str,
-    nargs="+",
-    default=["cuda:0", "cuda:1", "cuda:2", "cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"],
-    help="which devices to use on local machine",
-)
-parser.add_argument(
-    "--debugmode",
-    type=bool,
-    default=False,
-    help="Setting this to true will not spin up new processes. "
-    "The main code runs the main process, which makes it easier to debug with checkpointing.",
-)
-parser.add_argument(
-    "--folder",
-    type=str,
-    help="location to save logs",
-    default="",
-)
-parser.add_argument("--override_config_folder", action="store_true")
-parser.add_argument("--checkpoint", type=str, help="location of pretrained ckpt")
-parser.add_argument("--model_name", type=str, help="Model name")
-parser.add_argument("--batch_size", type=int)
-parser.add_argument("--use_fsdp", action="store_true")
 
-
-def process_main(args, rank, fname, world_size, devices):
-    import logging
-    import os
-
+def process_main(cfg: DictConfig, rank, world_size, devices):
+    """Launch evaluation process for a single rank."""
     os.environ["CUDA_VISIBLE_DEVICES"] = str(devices[rank].split(":")[-1])
+
+    import logging
 
     logging.basicConfig()
     logger = logging.getLogger()
@@ -56,28 +28,14 @@ def process_main(args, rank, fname, world_size, devices):
     else:
         logger.setLevel(logging.ERROR)
 
-    logger.info(f"called-params {fname}")
+    logger.info("called-params with Hydra config")
 
-    # Load config
-    params = None
-    with open(fname, "r") as y_file:
-        params = yaml.load(y_file, Loader=yaml.FullLoader)
-        if args.val_only:
-            params["val_only"] = True
+    # Convert OmegaConf to dict for compatibility with existing code
+    params = OmegaConf.to_container(cfg, resolve=True)
 
-        if args.checkpoint:
-            params["model_kwargs"]["checkpoint"] = args.checkpoint
-
-        if args.model_name:
-            params["model_kwargs"]["pretrain_kwargs"]["encoder"]["model_name"] = args.model_name
-
-        if args.batch_size:
-            params["experiment"]["optimization"]["batch_size"] = args.batch_size
-
-        if args.override_config_folder:
-            params["folder"] = args.folder
-        params["use_fsdp"] = args.use_fsdp
-        logger.info("loaded params...")
+    # Apply commonly used flags from cfg for convenience
+    params["val_only"] = cfg.get("val_only", params.get("val_only", False))
+    params["use_fsdp"] = cfg.get("use_fsdp", params.get("use_fsdp", False))
 
     if rank == 0:
         pprint.PrettyPrinter(indent=4).pprint(params)
@@ -90,23 +48,36 @@ def process_main(args, rank, fname, world_size, devices):
     eval_main(params["eval_name"], args_eval=params)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
-    if args.debugmode:
-        # FSDP debugging (use torchrun)
-        if args.use_fsdp:
+@hydra_main(config_path="../conf", config_name="eval_config", version_base=None)
+def hydra_entry(cfg: DictConfig):
+    """Hydra entrypoint for evaluation."""
+
+    devices = cfg.get(
+        "devices",
+        ["cuda:0", "cuda:1", "cuda:2", "cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"],
+    )
+    debugmode = cfg.get("debugmode", False)
+
+    if debugmode:
+        # FSDP debugging (use torchrun to set ranks/world size)
+        if cfg.get("use_fsdp", False):
             process_main(
-                args=args,
-                rank=int(os.environ["RANK"]),
-                fname=args.fname,
-                world_size=int(os.environ["WORLD_SIZE"]),
-                devices=args.devices,
+                cfg=cfg,
+                rank=int(os.environ.get("RANK", 0)),
+                world_size=int(os.environ.get("WORLD_SIZE", 1)),
+                devices=devices,
             )
-        # Single-GPU debugging
         else:
-            process_main(args=args, rank=0, fname=args.fname, world_size=1, devices=["cuda:0"])
+            process_main(cfg=cfg, rank=0, world_size=1, devices=[devices[0]])
     else:
-        num_gpus = len(args.devices)
-        mp.set_start_method("spawn")
+        num_gpus = len(devices)
+        mp.set_start_method("spawn", force=True)
         for rank in range(num_gpus):
-            mp.Process(target=process_main, args=(args, rank, args.fname, num_gpus, args.devices)).start()
+            mp.Process(
+                target=process_main,
+                args=(cfg, rank, num_gpus, devices),
+            ).start()
+
+
+if __name__ == "__main__":
+    hydra_entry()

@@ -1,0 +1,6 @@
+# Data augmentation configuration
+auto_augment: false
+motion_shift: false
+random_resize_aspect_ratio: [0.75, 1.35]
+random_resize_scale: [0.3, 1.0]
+reprob: 0.0
