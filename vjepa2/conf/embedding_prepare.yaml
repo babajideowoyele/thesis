@@ -15,13 +15,13 @@ model:
 dataset:
   name: mvfoul
   root_dir: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
-  split: train  # train or val
+  split: val  # train or val
   IMAGENET_DEFAULT_MEAN: (0.485, 0.456, 0.406)
   IMAGENET_DEFAULT_STD: (0.229, 0.224, 0.225)
 
 # Embedding extraction settings
 embedding:
-  pooling: kmeans  # mean, max, kmeans, or none (keep all frames)
+  pooling: mean  # mean, max, kmeans, or none (keep all frames)
   device: cuda  # cuda or cpu
   batch_size: 1  # Single video at a time
   num_workers: 0
