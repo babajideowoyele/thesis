@@ -33,6 +33,7 @@ dependencies = [
     "decord>=0.6.0",
     "opencv-python-headless>=4.13.0.90",
     "scikit-learn>=1.8.0",
+    "dotenv>=0.9.9",
 ]
 
 [tool.isort]

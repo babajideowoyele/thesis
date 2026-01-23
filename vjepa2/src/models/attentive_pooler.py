@@ -28,6 +28,9 @@ class AttentivePooler(nn.Module):
         qkv_bias=True,
         complete_block=True,
         use_activation_checkpointing=False,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        attention_mechanism=None,
     ):
         super().__init__()
         self.use_activation_checkpointing = use_activation_checkpointing
@@ -52,6 +55,10 @@ class AttentivePooler(nn.Module):
                         qkv_bias=qkv_bias,
                         qk_scale=False,
                         norm_layer=norm_layer,
+                        drop=proj_drop,
+                        attn_drop=attn_drop,
+                        drop_path=proj_drop,
+                        use_rope=attention_mechanism == "rope",
                     )
                     for i in range(depth - 1)
                 ]
@@ -115,6 +122,9 @@ class AttentiveClassifier(nn.Module):
         num_classes=1000,
         complete_block=True,
         use_activation_checkpointing=False,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        attention_mechanism=None,
     ):
         super().__init__()
         self.pooler = AttentivePooler(
@@ -128,6 +138,9 @@ class AttentiveClassifier(nn.Module):
             qkv_bias=qkv_bias,
             complete_block=complete_block,
             use_activation_checkpointing=use_activation_checkpointing,
+            attn_drop=attn_drop,
+            proj_drop=proj_drop,
+            attention_mechanism=attention_mechanism,
         )
         self.linear = nn.Linear(embed_dim, num_classes, bias=True)
 

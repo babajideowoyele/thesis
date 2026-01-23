@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 
 class PrecomputedEmbeddingDataset(Dataset):
@@ -25,7 +26,7 @@ class PrecomputedEmbeddingDataset(Dataset):
     Each sample is: (embedding, label, metadata)
     """
     
-    def __init__(self, embeddings_path: str, config_path: Optional[str] = None):
+    def __init__(self, embeddings_path: str, config_path: Optional[str] = None, consolidate: bool = False):
         """
         Initialize dataset from precomputed embeddings.
         
@@ -52,8 +53,76 @@ class PrecomputedEmbeddingDataset(Dataset):
         else:
             self.config = None
         
+        # Consolidate by action_dir if requested
+        if consolidate:
+            self._consolidate_by_action_dir()
+        
         # Create index mapping (handle sparse indices)
         self.indices = sorted(self.embeddings_dict.keys())
+        self.labels = [self.embeddings_dict[idx]["label"] for idx in self.indices]
+        
+    
+    def _consolidate_by_action_dir(self):
+        """
+        Consolidate samples from the same action_dir by concatenating their features.
+        Handles both (S,D) and (D,) shaped features.
+        Updates self.embeddings_dict with consolidated samples.
+        """
+        # Group by action_dir
+        action_dir_groups = {}
+        max_seq_len = 0
+        for idx, sample in self.embeddings_dict.items():
+            action_dir = sample.get('action_dir')
+            if action_dir is None:
+                # Skip samples without action_dir
+                continue
+            if action_dir not in action_dir_groups:
+                action_dir_groups[action_dir] = []
+            if len(sample['features'].shape) == 1:
+                # (D,) -> (1,D)
+                sample['features'] = sample['features'].unsqueeze(0)
+            action_dir_groups[action_dir].append((idx, sample))
+        
+        for item in action_dir_groups.values():
+            num_vids = len(item)
+            seq_len=num_vids*item[0][1]["features"].shape[0]
+            if seq_len > max_seq_len:
+                max_seq_len = seq_len
+            
+        
+        if not action_dir_groups:
+            # No action_dir found, skip consolidation
+            return
+        
+        # Create new consolidated dict
+        consolidated_dict = {}
+        new_idx = 0
+        
+        for action_dir, samples in action_dir_groups.items():
+            # Sort by original index to maintain consistent ordering
+            samples = sorted(samples, key=lambda x: x[0])
+            
+            # Extract features and normalize shape
+            features_list = []
+            for _, sample in samples:
+                features = sample['features']
+                # Handle shape: (D,) -> (1,D), (S,D) stays (S,D)
+                features_list.append(features)
+            if sum(f.shape[0] for f in features_list) > max_seq_len:
+                max_seq_len = sum(f.shape[0] for f in features_list)
+            
+            # Concatenate along sequence dimension
+            consolidated_features = torch.zeros((max_seq_len, features_list[0].shape[1]))
+            unpad_features = torch.cat(features_list, dim=0)
+            consolidated_features[:unpad_features.shape[0]] = unpad_features  # (S_total, D)
+            
+            # Use metadata from first sample (they should all have same label/action_class)
+            first_sample = samples[0][1]
+            first_sample['features'] = consolidated_features
+            consolidated_dict[new_idx] = first_sample.copy()
+            new_idx += 1
+        
+        self.embeddings_dict = consolidated_dict
     
     def __len__(self) -> int:
         """Return number of samples."""
@@ -83,7 +152,7 @@ class PrecomputedEmbeddingDataset(Dataset):
             return self.config["embed_dim"]
         # Infer from first sample
         first_sample = self.embeddings_dict[self.indices[0]]
-        return first_sample["features"].shape[0]
+        return first_sample["features"].shape[-1]
     
     def get_num_classes(self) -> int:
         """Get number of classes."""
@@ -106,6 +175,29 @@ class PrecomputedEmbeddingDataset(Dataset):
             label = sample["label"]
             distribution[label] = distribution.get(label, 0) + 1
         return distribution
+    
+    def get_weights(self) -> list:
+        """Calculate sample weights for balanced sampling (inverse frequency)."""
+        # Count samples per class
+        class_counts = {}
+        for sample_idx in self.indices:
+            sample = self.embeddings_dict[sample_idx]
+            label = sample["label"]
+            if label not in class_counts:
+                class_counts[label] = 0
+            class_counts[label] += 1
+        
+        # Calculate inverse frequency weights
+        factors = {label: 1.0 / torch.sqrt(torch.tensor(count)).item() for label, count in class_counts.items()}
+        
+        # Assign weight to each sample based on its class
+        weights = []
+        for sample_idx in self.indices:
+            sample = self.embeddings_dict[sample_idx]
+            label = sample["label"]
+            weights.append(factors[label])
+        
+        return weights
 
 
 def load_embedding_dataloader(
@@ -149,8 +241,11 @@ def train_classifier(
     val_loader: Optional[DataLoader] = None,
     num_epochs: int = 50,
     learning_rate: float = 1e-3,
+    min_lr: float = 1e-6,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
     verbose: bool = True,
+    cfg: Optional[Dict[str, Any]] = None,
+    log_interval: int = 10,
 ) -> Dict[str, list]:
     """
     Train classifier on precomputed embeddings.
@@ -160,15 +255,17 @@ def train_classifier(
         train_loader: Training data loader
         val_loader: Validation data loader (optional)
         num_epochs: Number of epochs
-        learning_rate: Learning rate
+        learning_rate: Initial learning rate
+        min_lr: Minimum learning rate for cosine annealing
         device: Device to train on
         verbose: Whether to print progress
     
     Returns:
-        Dictionary of training history
+        Dictionary of training history (includes per-epoch lr)
     """
     model = model.to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg.training.weight_decay if cfg else 0)
+    scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=min_lr)
     criterion = torch.nn.CrossEntropyLoss()
     
     history = {
@@ -176,9 +273,12 @@ def train_classifier(
         "train_acc": [],
         "val_loss": [],
         "val_acc": [],
+        "val_bal_acc": [],
+        "lr": [],
     }
     
     for epoch in range(num_epochs):
+        current_lr = optimizer.param_groups[0]["lr"]
         # Training
         model.train()
         train_loss = 0.0
@@ -190,6 +290,9 @@ def train_classifier(
             labels = labels.to(device)
             
             optimizer.zero_grad()
+            if len(embeddings.shape) == 2:
+                embeddings = embeddings.unsqueeze(1)  # Add sequence dim if missing
+            assert len(embeddings.shape) == 3, "Embeddings must be (B, S, D)"
             outputs = model(embeddings)
             loss = criterion(outputs, labels)
             loss.backward()
@@ -203,6 +306,7 @@ def train_classifier(
         train_acc /= num_samples
         history["train_loss"].append(train_loss)
         history["train_acc"].append(train_acc)
+        history["lr"].append(current_lr)
         
         # Validation
         if val_loader:
@@ -210,29 +314,61 @@ def train_classifier(
             val_loss = 0.0
             val_acc = 0.0
             num_val_samples = 0
+            num_classes = None
+            val_correct_per_class = None
+            val_total_per_class = None
             
             with torch.no_grad():
                 for embeddings, labels in val_loader:
                     embeddings = embeddings.to(device)
                     labels = labels.to(device)
-                    
+                    if len(embeddings.shape) == 2:
+                        embeddings = embeddings.unsqueeze(1)  # Add sequence dim if missing
                     outputs = model(embeddings)
                     loss = criterion(outputs, labels)
                     
                     val_loss += loss.item() * labels.size(0)
                     val_acc += (outputs.argmax(1) == labels).sum().item()
+
+                    # Balanced accuracy: average recall across classes
+                    preds = outputs.argmax(1)
+                    if num_classes is None:
+                        num_classes = outputs.size(1)
+                        val_correct_per_class = torch.zeros(num_classes, device=device)
+                        val_total_per_class = torch.zeros(num_classes, device=device)
+
+                    for cls_idx in range(num_classes):
+                        cls_mask = labels == cls_idx
+                        cls_total = cls_mask.sum()
+                        val_total_per_class[cls_idx] += cls_total
+                        if cls_total > 0:
+                            val_correct_per_class[cls_idx] += (preds[cls_mask] == cls_idx).sum()
                     num_val_samples += labels.size(0)
             
             val_loss /= num_val_samples
             val_acc /= num_val_samples
+            if num_classes is None:
+                val_bal_acc = 0.0
+            else:
+                class_recalls = []
+                for cls_idx in range(num_classes):
+                    cls_total = val_total_per_class[cls_idx].item()
+                    if cls_total == 0:
+                        class_recalls.append(0.0)
+                    else:
+                        class_recalls.append(val_correct_per_class[cls_idx].item() / cls_total)
+                val_bal_acc = sum(class_recalls) / num_classes
             history["val_loss"].append(val_loss)
             history["val_acc"].append(val_acc)
+            history["val_bal_acc"].append(val_bal_acc)
         
-        if verbose and (epoch + 1) % 10 == 0:
+        if verbose and (epoch + 1) % log_interval == 0:
             msg = f"Epoch {epoch+1}/{num_epochs}: "
-            msg += f"train_loss={train_loss:.4f}, train_acc={train_acc:.4f}"
+            msg += f"train_loss={train_loss:.4f}, train_acc={train_acc:.4f}, lr={current_lr:.6f}"
             if val_loader:
-                msg += f", val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
+                msg += f", val_loss={val_loss:.4f}, val_acc={val_acc:.4f}, val_bal_acc={val_bal_acc:.4f}"
             print(msg)
+
+        scheduler.step()
     
     return history

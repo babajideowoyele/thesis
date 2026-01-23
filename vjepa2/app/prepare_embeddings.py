@@ -237,7 +237,7 @@ class MVFoulEmbeddingPreparator:
                     elif self.cfg.embedding.pooling == "kmeans":
                         kmeans = KMeans(n_clusters=self.cfg.embedding.kmeans_clusters, random_state=0)
                         kmeans.fit(embeddings.numpy())
-                        pooled_embeddings = torch.from_numpy(kmeans.cluster_centers_.mean(axis=0))
+                        pooled_embeddings = torch.from_numpy(kmeans.cluster_centers_)
                     elif self.cfg.embedding.pooling == "none":
                         pooled_embeddings = embeddings
                     else:

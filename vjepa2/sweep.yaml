@@ -1,0 +1,27 @@
+program: app.train_classifier_on_embeddings  # Your main entry point
+method: bayes      # grid, random, or bayes
+metric:
+  name: final_val_bal_acc
+  goal: maximize
+parameters:
+  # Use dot notation for nested Hydra configs
+  training.learning_rate:
+    values: [0.01, 0.005, 0.001, 0.0005, 0.0001]
+  training.weight_decay:
+    values: [0.1, 0.05, 0.01, 0.005]
+  training.scheduler.min_lr:
+    values: [1e-5, 1e-6, 1e-7]
+  model.mlp_ratio:
+    values: [0.1, 0.3, 0.5, 1.0, 1.5]
+  model.dropout:
+    values: [0.1, 0.3, 0.5]
+  model.num_probe_blocks:
+    values: [1, 2]
+  model.num_heads:
+    values: [2, 4, 8]
+command:
+  - uv 
+  - run 
+  - "-m"
+  - ${program}
+  - ${args_no_hyphens}  # Crucial: converts '--model.lr 0.01' to 'model.lr=0.01'
