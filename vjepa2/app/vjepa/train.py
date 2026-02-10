@@ -33,6 +33,7 @@ from src.masks.multiseq_multiblock3d import MaskCollator
 from src.masks.utils import apply_masks
 from src.utils.distributed import init_distributed
 from src.utils.logging import AverageMeter, CSVLogger, get_logger, gpu_timer
+from src.utils.loss import get_loss_fn
 
 # --
 log_timings = True
@@ -125,7 +126,7 @@ def main(args, resume_preempt=False):
 
     # -- LOSS
     cfgs_loss = args.get("loss")
-    loss_exp = cfgs_loss.get("loss_exp")
+    loss_fn_module = get_loss_fn(cfgs_loss)
 
     # -- OPTIMIZATION
     cfgs_opt = args.get("optimization")
@@ -441,12 +442,16 @@ def main(args, resume_preempt=False):
                     # Assumption: predictor will have returned only masked tokens for z
                     h = [apply_masks(hi, mi, concat=False) for hi, mi in zip(h, masks_pred)]
 
-                    loss, n = 0, 0
+                    # Compute loss using the registered loss function
+                    loss_parts = []
                     for zi, hi in zip(z, h):
                         for zij, hij in zip(zi, hi):
-                            loss += torch.mean(torch.abs(zij - hij) ** loss_exp) / loss_exp
-                            n += 1
-                    loss /= n
+                            loss_parts.append(loss_fn_module(zij.unsqueeze(0), hij.unsqueeze(0)))
+                    
+                    if loss_parts:
+                        loss = torch.stack(loss_parts).mean()
+                    else:
+                        loss = torch.tensor(0.0, device=z[0].device, requires_grad=True)
                     return loss
 
                 # Step 1. Forward

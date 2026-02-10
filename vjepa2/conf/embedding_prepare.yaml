@@ -8,32 +8,46 @@ defaults:
 model:
   variant: vitl  # vitl or vitg
   img_size: 256  # 256 for vitl, 384 for vitg
-  num_frames: 64
+  num_frames: 32
   pretrained_path: /sc/home/konrad.goldenbaum/models/vitl.pt # Will be overridden by command line
 
 # Dataset configuration
 dataset:
   name: mvfoul
   root_dir: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
-  split: val  # train or val
+  split: train  # train or val
   IMAGENET_DEFAULT_MEAN: (0.485, 0.456, 0.406)
   IMAGENET_DEFAULT_STD: (0.229, 0.224, 0.225)
 
 # Embedding extraction settings
 embedding:
-  pooling: mean  # mean, max, kmeans, or none (keep all frames)
+  pooling: none  # mean, max, kmeans, or none (keep all frames)
   device: cuda  # cuda or cpu
-  batch_size: 1  # Single video at a time
-  num_workers: 0
-  kmeans_clusters: 20  # Number of clusters for kmeans pooling
+  kmeans_clusters: 40  # Number of clusters for kmeans pooling
 
 # Output configuration
 output:
   dir: ./embeddings
   save_format: pytorch  # pytorch only
   verbose: true
+  chunk_size: 300  # Maximum number of samples per file chunk
+
+# Player detection for intelligent frame sampling
+player_detection:
+  enabled: false  # Enable player-aware frame sampling (falls back to uniform if fails)
+  model: google/owlv2-base-patch16  # OWLv2 model for zero-shot object detection
+  device: cuda  # cpu or cuda - use cpu to avoid GPU congestion with main model
+  queries:  # Text queries for detecting players
+    - soccer player
+    - football player
+    - person playing soccer
+    - player laying on the ground
+  confidence_threshold: 0.4  # Minimum confidence for player detection
+  probe_frames: 8  # Number of frames to probe for player detection
 
 # Processing
 processing:
   skip_errors: true  # Skip videos with errors
   log_interval: 10  # Print progress every N videos
+  num_workers: 8  # Number of parallel workers for video loading (0 = main process only)
+  batch_size: 1  # Batch size for processing (recommend 1 for variable-size videos)

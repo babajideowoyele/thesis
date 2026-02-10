@@ -2,12 +2,13 @@
 # Usage: python app/train_classifier_on_embeddings.py
 
 defaults:
+  - loss: default
   - _self_
 
 # Embeddings configuration
 embeddings:
-  train_path: ./embeddings/mvfoul_train_mean_embeddings.pt
-  val_path: ./embeddings/mvfoul_val_mean_embeddings.pt
+  train_path: ./embeddings/mvfoul_train_40kmeans_sel_embeddings.pt
+  val_path: ./embeddings/mvfoul_val_40kmeans_sel_embeddings.pt
 
 # Model configuration
 model:
@@ -25,6 +26,9 @@ model:
 # Training configuration
 training:
   num_epochs: 40
+  loss: cross_entropy  # cross_entropy or view_level
+  alpha: 0.5
+  gamma: 2.0
   batch_size: 64
   learning_rate: 1e-4
   weight_decay: 3e-2

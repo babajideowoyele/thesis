@@ -22,6 +22,7 @@ from pathlib import Path
 import torch
 from omegaconf import DictConfig, OmegaConf
 import hydra
+from utils.loss import get_loss_fn
 import wandb
 
 from src.models.attentive_pooler import AttentiveClassifier
@@ -73,6 +74,8 @@ def main(cfg: DictConfig):
     # Load dataset
     if cfg.logging.verbose:
         print(f"Loading embeddings from {cfg.embeddings.train_path}...")
+
+    loss_func = get_loss_fn(cfg.loss)
     
     dataset = PrecomputedEmbeddingDataset(cfg.embeddings.train_path, consolidate=cfg.data.consolidate)
     
@@ -196,6 +199,7 @@ def main(cfg: DictConfig):
         learning_rate=cfg.training.learning_rate,
         device=cfg.optimization.device,
         verbose=cfg.logging.verbose and cfg.logging.log_interval > 0,
+        loss_func=loss_func,
         cfg=cfg,
         log_interval=cfg.logging.log_interval,
         min_lr=cfg.training.scheduler.min_lr,

@@ -31,20 +31,19 @@ class PrecomputedEmbeddingDataset(Dataset):
         Initialize dataset from precomputed embeddings.
         
         Args:
-            embeddings_path: Path to .pt file containing embeddings dict
+            embeddings_path: Path to .pt file containing embeddings dict (or pattern for chunked files)
             config_path: Path to .json config file (auto-generated if not specified)
+            consolidate: Whether to consolidate samples by action_dir
         """
         self.embeddings_path = Path(embeddings_path)
         
-        # Load embeddings
-        if not self.embeddings_path.exists():
-            raise FileNotFoundError(f"Embeddings file not found: {embeddings_path}")
-        
-        self.embeddings_dict = torch.load(embeddings_path, map_location="cpu")
-        
-        # Load config if provided
+        # Load config first to check if chunked
         if config_path is None:
-            config_path = str(self.embeddings_path).replace("embeddings.pt", "config.json")
+            # Try to infer config path
+            config_path = str(self.embeddings_path).replace("_embeddings.pt", "_config.json")
+            # Also handle chunked file naming
+            if "_embeddings_chunk" in str(self.embeddings_path):
+                config_path = str(self.embeddings_path).split("_embeddings_chunk")[0] + "_config.json"
         
         self.config_path = Path(config_path)
         if self.config_path.exists():
@@ -53,6 +52,18 @@ class PrecomputedEmbeddingDataset(Dataset):
         else:
             self.config = None
         
+        # Check if embeddings are chunked
+        is_chunked = self.config and self.config.get("chunked", False)
+        
+        if is_chunked:
+            # Load from multiple chunk files
+            self.embeddings_dict = self._load_chunked_embeddings()
+        else:
+            # Load from single file (original behavior)
+            if not self.embeddings_path.exists():
+                raise FileNotFoundError(f"Embeddings file not found: {embeddings_path}")
+            self.embeddings_dict = torch.load(embeddings_path, map_location="cpu")
+        
         # Consolidate by action_dir if requested
         if consolidate:
             self._consolidate_by_action_dir()
@@ -60,6 +71,35 @@ class PrecomputedEmbeddingDataset(Dataset):
         # Create index mapping (handle sparse indices)
         self.indices = sorted(self.embeddings_dict.keys())
         self.labels = [self.embeddings_dict[idx]["label"] for idx in self.indices]
+    
+    def _load_chunked_embeddings(self) -> Dict[int, Dict[str, Any]]:
+        """Load embeddings from multiple chunk files."""
+        if self.config is None:
+            raise ValueError("Config file required for chunked embeddings")
+        
+        num_chunks = self.config.get("num_chunks", 1)
+        
+        # Determine chunk file pattern from embeddings_path
+        # Handle both direct path to chunk and base path
+        base_path_str = str(self.embeddings_path)
+        if "_embeddings_chunk" in base_path_str:
+            # Extract base pattern (e.g., "mvfoul_train_embeddings")
+            base_path_str = base_path_str.split("_embeddings_chunk")[0] + "_embeddings"
+        else:
+            # Remove .pt extension
+            base_path_str = base_path_str.replace("_embeddings.pt", "_embeddings")
+        
+        # Load all chunks
+        combined_dict = {}
+        for chunk_idx in range(num_chunks):
+            chunk_path = Path(f"{base_path_str}_chunk{chunk_idx:04d}.pt")
+            if not chunk_path.exists():
+                raise FileNotFoundError(f"Chunk file not found: {chunk_path}")
+            
+            chunk_dict = torch.load(chunk_path, map_location="cpu")
+            combined_dict.update(chunk_dict)
+        
+        return combined_dict
         
     
     def _consolidate_by_action_dir(self):
@@ -211,8 +251,10 @@ def load_embedding_dataloader(
     """
     Create DataLoader from precomputed embeddings.
     
+    Automatically handles both single-file and chunked embeddings based on config.
+    
     Args:
-        embeddings_path: Path to embeddings .pt file
+        embeddings_path: Path to embeddings .pt file (or any chunk file for chunked embeddings)
         batch_size: Batch size
         num_workers: Number of data loading workers
         shuffle: Whether to shuffle data
@@ -244,6 +286,7 @@ def train_classifier(
     min_lr: float = 1e-6,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
     verbose: bool = True,
+    loss_func: Optional[torch.nn.Module] = None,
     cfg: Optional[Dict[str, Any]] = None,
     log_interval: int = 10,
 ) -> Dict[str, list]:
@@ -266,7 +309,7 @@ def train_classifier(
     model = model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=cfg.training.weight_decay if cfg else 0)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=min_lr)
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss() if loss_func is None else loss_func.to(device)
     
     history = {
         "train_loss": [],

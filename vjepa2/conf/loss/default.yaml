@@ -1,0 +1,22 @@
+# Loss configuration using registry system
+# 
+# Available loss functions:
+#   - l1: L1/MAE loss
+#   - mse: Mean Squared Error loss
+#   - smooth_l1: Smooth L1 loss
+#   - cross_entropy: Cross Entropy loss (for classification)
+#   - bce: Binary Cross Entropy loss
+#   - bce_with_logits: BCE with logits
+#   - huber: Huber loss
+#   - kl_divergence: KL Divergence loss
+#   - cosine_embedding: Cosine Embedding loss
+#   - triplet: Triplet loss
+#   - vjepa_lp: VJEPA Lp loss (mean absolute difference raised to power p)
+#   - cosine_similarity: Cosine similarity based loss
+#   - contrastive: Contrastive loss
+
+# Default: VJEPA Lp loss with p=2.0 (as used in original V-JEPA paper)
+name: two_way_multilabel
+alpha: 1.0
+gamma: 1.0
+label_smoothing: 0.1
