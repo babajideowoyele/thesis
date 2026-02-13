@@ -34,6 +34,7 @@ dependencies = [
     "opencv-python-headless>=4.13.0.90",
     "scikit-learn>=1.8.0",
     "dotenv>=0.9.9",
+    "pytorch-ignite>=0.5.3",
 ]
 
 [tool.isort]

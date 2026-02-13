@@ -6,33 +6,37 @@
 
 import math
 
+from omegaconf import DictConfig
 import torch
 import torch.nn as nn
 
 from src.models.utils.modules import Block, CrossAttention, CrossAttentionBlock
 from src.utils.tensors import trunc_normal_
+from src.utils.model_registry import MODEL_REGISTRY
 
 
+@MODEL_REGISTRY.register("attentive_pooler")
 class AttentivePooler(nn.Module):
     """Attentive Pooler"""
 
     def __init__(
         self,
-        num_queries=1,
-        embed_dim=768,
-        num_heads=12,
-        mlp_ratio=4.0,
-        depth=1,
-        norm_layer=nn.LayerNorm,
-        init_std=0.02,
-        qkv_bias=True,
-        complete_block=True,
-        use_activation_checkpointing=False,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        attention_mechanism=None,
+        cfg: DictConfig,
     ):
         super().__init__()
+        num_queries=cfg.num_queries
+        embed_dim=cfg.embedding_dim
+        num_heads=cfg.num_heads
+        mlp_ratio=cfg.mlp_ratio
+        depth=cfg.depth
+        norm_layer=nn.LayerNorm
+        init_std=cfg.init_std
+        qkv_bias=cfg.qkv_bias
+        complete_block=cfg.complete_block
+        use_activation_checkpointing=cfg.use_activation_checkpointing
+        attn_drop=cfg.attn_drop
+        proj_drop=cfg.proj_drop
+        attention_mechanism=cfg.att_pos
         self.use_activation_checkpointing = use_activation_checkpointing
         self.query_tokens = nn.Parameter(torch.zeros(1, num_queries, embed_dim))
 
@@ -106,45 +110,26 @@ class AttentivePooler(nn.Module):
         q = self.cross_attention_block(q, x)
         return q
 
-
+@MODEL_REGISTRY.register("attentive_classifier")
 class AttentiveClassifier(nn.Module):
     """Attentive Classifier"""
 
     def __init__(
         self,
-        embed_dim=768,
-        num_heads=12,
-        mlp_ratio=4.0,
-        depth=1,
-        norm_layer=nn.LayerNorm,
-        init_std=0.02,
-        qkv_bias=True,
-        num_classes=1000,
-        complete_block=True,
-        use_activation_checkpointing=False,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        attention_mechanism=None,
+        cfg: DictConfig,
     ):
         super().__init__()
         self.pooler = AttentivePooler(
-            num_queries=1,
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            mlp_ratio=mlp_ratio,
-            depth=depth,
-            norm_layer=norm_layer,
-            init_std=init_std,
-            qkv_bias=qkv_bias,
-            complete_block=complete_block,
-            use_activation_checkpointing=use_activation_checkpointing,
-            attn_drop=attn_drop,
-            proj_drop=proj_drop,
-            attention_mechanism=attention_mechanism,
+            cfg,
         )
-        self.linear = nn.Linear(embed_dim, num_classes, bias=True)
+        self.linear = nn.Linear(cfg.embedding_dim, cfg.num_classes, bias=True)
+        self.aggregate_logits = nn.AdaptiveAvgPool1d(1)
 
     def forward(self, x):
         x = self.pooler(x).squeeze(1)
+        if len(x.shape) == 3:
+            x = self.aggregate_logits(x.transpose(2,1))
+            if len(x.shape) == 3:
+                x = x.squeeze(2)
         x = self.linear(x)
         return x

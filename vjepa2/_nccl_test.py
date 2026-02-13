@@ -1,0 +1,10 @@
+import torch, torch.distributed as dist, os
+dist.init_process_group(backend='nccl')
+rank = int(os.environ['RANK'])
+torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
+t = torch.ones(1, device=f'cuda:{rank}')
+print(f'Rank {rank}: before all_reduce, t={t.item()}', flush=True)
+dist.all_reduce(t)
+print(f'Rank {rank}: after all_reduce, t={t.item()}', flush=True)
+dist.destroy_process_group()
+print(f'Rank {rank}: done', flush=True)

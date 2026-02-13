@@ -25,3 +25,4 @@ ftfy
 jupyter
 hydra-core
 omegaconf
+pytorch-ignite

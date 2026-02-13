@@ -12,7 +12,7 @@ parameters:
   training.scheduler.min_lr:
     values: [1e-5, 1e-6, 1e-7]
   model.mlp_ratio:
-    values: [0.1, 0.3, 0.5, 1.0, 1.5]
+    values: [0.5, 1.0, 1.5, 2.0]
   model.dropout:
     values: [0.1, 0.3, 0.5]
   model.num_probe_blocks:
@@ -22,6 +22,8 @@ parameters:
 command:
   - uv 
   - run 
+  - torchrun
+  - --nproc_per_node=2
   - "-m"
   - ${program}
-  - ${args_no_hyphens}  # Crucial: converts '--model.lr 0.01' to 'model.lr=0.01'
+  - ${args_no_hyphens}  # converts '--model.lr 0.01' to 'model.lr=0.01'

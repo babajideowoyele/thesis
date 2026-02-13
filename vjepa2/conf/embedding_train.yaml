@@ -3,33 +3,27 @@
 
 defaults:
   - loss: default
+  - model: attentive_pooler # attentive_pooler, aggregate
   - _self_
 
 # Embeddings configuration
 embeddings:
-  train_path: ./embeddings/mvfoul_train_40kmeans_sel_embeddings.pt
-  val_path: ./embeddings/mvfoul_val_40kmeans_sel_embeddings.pt
+  train_path: ./embeddings/mvfoul_train_embeddings.pt
+  val_path: ./embeddings/mvfoul_val_embeddings.pt
 
-# Model configuration
 model:
-  embedding_dim: 1024  # Will be auto-detected from embeddings
-  num_classes: 9      # Will be auto-detected from embeddings
-  mlp_ratio: 0.2
-  num_heads: 2
-  dropout: 0.3
-  proj_drop: 0.5
-  attn_drop: 0.5
-  num_layers: 1
-  num_probe_blocks: 1
-  att_pos: none # none, rope
+  embedding_dim: 1024 # obsolete
+  dropout: 0.3 # obsolete
+  attn_drop: 0.3
+  proj_drop: 0.3
 
 # Training configuration
 training:
-  num_epochs: 40
-  loss: cross_entropy  # cross_entropy or view_level
+  num_epochs: 5
+  loss: two_way_multilabel  # cross_entropy or view_level
   alpha: 0.5
   gamma: 2.0
-  batch_size: 64
+  batch_size: 8
   learning_rate: 1e-4
   weight_decay: 3e-2
   optimizer: adamw  # adam or sgd
@@ -37,15 +31,16 @@ training:
   # Scheduler
   scheduler:
     name: cosine  # cosine, step, or none
-    warmup_epochs: 5
+    warmup_epochs: 2
     min_lr: 1e-6
 
 # Data configuration
 data:
   val_split: 0.1  # Validation split if not using val_path
-  num_workers: 8
+  num_workers: 7
   pin_memory: true
   shuffle: true
+  keep_in_memory: false  # Whether to keep all embeddings in memory (if false, will load on-the-fly)
   consolidate: true  # Whether to consolidate embeddings by action_dir
   IMAGENET_DEFAULT_MEAN: (0.485, 0.456, 0.406)
   IMAGENET_DEFAULT_STD: (0.229, 0.224, 0.225)
@@ -59,14 +54,19 @@ optimization:
 # Logging and checkpointing
 logging:
   output_dir: ./checkpoints
-  log_interval: 2  # Print every N batches
-  save_interval: 10  # Save checkpoint every N epochs
+  log_interval: 1  # Print every N batches
+  save_interval: 2  # Save checkpoint every N epochs
   verbose: true
 
 # Meta settings
 meta:
   seed: 42
   deterministic: false
+
+# Distributed training (auto-detected from torchrun env vars)
+# Launch with: torchrun --nproc_per_node=NUM_GPUS app/train_classifier_on_embeddings.py
+distributed:
+  backend: nccl  # nccl for GPU, gloo for CPU
 
 WANDB:
   SYNC_ENABLE: true

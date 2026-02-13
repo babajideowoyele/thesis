@@ -13,8 +13,9 @@ from src.masks.utils import apply_masks
 from src.models.utils.modules import Block
 from src.models.utils.pos_embs import get_2d_sincos_pos_embed, get_3d_sincos_pos_embed
 from src.utils.tensors import repeat_interleave_batch, trunc_normal_
+from src.utils.model_registry import MODEL_REGISTRY
 
-
+@MODEL_REGISTRY.register("vision_transformer_predictor")
 class VisionTransformerPredictor(nn.Module):
     """Vision Transformer"""
 

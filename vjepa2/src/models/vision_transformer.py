@@ -14,8 +14,10 @@ from src.models.utils.modules import Block
 from src.models.utils.patch_embed import PatchEmbed, PatchEmbed3D
 from src.models.utils.pos_embs import get_2d_sincos_pos_embed, get_3d_sincos_pos_embed
 from src.utils.tensors import trunc_normal_
+from src.utils.model_registry import MODEL_REGISTRY
 
 
+@MODEL_REGISTRY.register("vision_transformer")
 class VisionTransformer(nn.Module):
     """Vision Transformer"""
 
@@ -272,6 +274,7 @@ class VisionTransformer(nn.Module):
             return pos_embed
 
 
+@MODEL_REGISTRY.register("vit_large")
 def vit_large(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -285,7 +288,7 @@ def vit_large(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_huge")
 def vit_huge(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -300,6 +303,7 @@ def vit_huge(patch_size=16, **kwargs):
     return model
 
 
+@MODEL_REGISTRY.register("vit_giant_xformers")
 def vit_giant_xformers(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -316,6 +320,7 @@ def vit_giant_xformers(patch_size=16, **kwargs):
 
 # We do not use any of the following ViT definitions in V-JEPA 2, but retain them for
 # compatibility reasons.
+@MODEL_REGISTRY.register("vit_synthetic")
 def vit_synthetic(patch_size=16, **kwargs):
     # For performance testing only
     model = VisionTransformer(
@@ -330,7 +335,7 @@ def vit_synthetic(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_tiny")
 def vit_tiny(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -344,7 +349,7 @@ def vit_tiny(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_small")
 def vit_small(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -358,7 +363,7 @@ def vit_small(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_base")
 def vit_base(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -372,7 +377,7 @@ def vit_base(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_large_rope")
 def vit_large_rope(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -387,7 +392,7 @@ def vit_large_rope(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_huge_rope")
 def vit_huge_rope(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -402,7 +407,7 @@ def vit_huge_rope(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_giant")
 def vit_giant(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -416,7 +421,7 @@ def vit_giant(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_giant_rope")
 def vit_giant_rope(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -431,7 +436,7 @@ def vit_giant_rope(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_giant_xformers_rope")
 def vit_giant_xformers_rope(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
@@ -446,28 +451,28 @@ def vit_giant_xformers_rope(patch_size=16, **kwargs):
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_gigantic")
 def vit_gigantic(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
         embed_dim=1664,
         depth=48,
         num_heads=16,
-        mpl_ratio=64 / 13,
+        mlp_ratio=64 / 13,
         qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
         **kwargs
     )
     return model
 
-
+@MODEL_REGISTRY.register("vit_gigantic_xformers")
 def vit_gigantic_xformers(patch_size=16, **kwargs):
     model = VisionTransformer(
         patch_size=patch_size,
         embed_dim=1664,
         depth=48,
         num_heads=26,
-        mpl_ratio=64 / 13,
+        mlp_ratio=64 / 13,
         qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
         **kwargs

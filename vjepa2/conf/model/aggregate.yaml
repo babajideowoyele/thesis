@@ -1,0 +1,7 @@
+name: aggregate_prediction
+method: mean # mean, max
+num_classes: 9
+depth: 1
+intermediate_dim: 2048
+embedding_dim: 1024 # obsolete
+dropout: 0.3 # obsolete
