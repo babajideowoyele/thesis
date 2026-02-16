@@ -15,12 +15,13 @@ from datasets.utils.video.randerase import RandomErasing
 from datasets.utils.video.transforms import RandomResizedCropAndInterpolation
 from utils.logging import get_logger
 from datasets.utils.mvfoul_translations import translate_annotation, ActionClass
+from src.utils.dataset_registry import DATASET_REGISTRY
 
 logger = get_logger(__name__)
 
-
+@DATASET_REGISTRY.register("mvfoul")
 class Mvfoul(torch.utils.data.Dataset):
-    def __init__(self, cfg, split):
+    def __init__(self, cfg, split, transform=None, transform_model=None):
         super(Mvfoul, self).__init__() 
         self.cfg = cfg
         self.split = split
@@ -30,7 +31,7 @@ class Mvfoul(torch.utils.data.Dataset):
         self.num_overfit_samples: int = cfg.DATA.OVERFIT.NUM_SAMPLES
         self.weights = None
         self._construct_dataset()
-        self._config_transform()
+        self._config_transform(transform, transform_model)
 
     @staticmethod
     def get_num_frames(cfg):
@@ -239,7 +240,7 @@ class Mvfoul(torch.utils.data.Dataset):
             self.labels[int(idx)] = label
     
 
-    def _config_transform(self):
+    def _config_transform(self, transform=None, transform_model=None):
         """
         Configs the transform for the dataset.
         For train, we apply random cropping, random horizontal flip, random color jitter (optionally),
@@ -251,6 +252,9 @@ class Mvfoul(torch.utils.data.Dataset):
             For self-supervised training, the augmentations are performed in the 
             corresponding generator.
         """
+        if transform is not None:
+            self.transform = transform
+            return
         self.transform = None
         fill_value = [int(x * 255) for x in self.cfg.DATA.MEAN]
         if self.split == 'train' and not self.cfg.PRETRAIN.ENABLE:

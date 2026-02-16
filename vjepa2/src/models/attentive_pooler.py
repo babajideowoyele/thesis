@@ -5,7 +5,6 @@
 
 
 import math
-
 from omegaconf import DictConfig
 import torch
 import torch.nn as nn
@@ -122,8 +121,13 @@ class AttentiveClassifier(nn.Module):
         self.pooler = AttentivePooler(
             cfg,
         )
-        self.linear = nn.Linear(cfg.embedding_dim, cfg.num_classes, bias=True)
-        self.aggregate_logits = nn.AdaptiveAvgPool1d(1)
+        if cfg.concat:
+            embedding_dim = cfg.embedding_dim * cfg.num_queries
+            self.aggregate_logits = lambda x: x.flatten(1)
+        else:
+            self.aggregate_logits = self.aggregate_logits = nn.AdaptiveAvgPool1d(1)
+            embedding_dim = cfg.embedding_dim
+        self.linear = nn.Linear(embedding_dim, cfg.num_classes, bias=True)
 
     def forward(self, x):
         x = self.pooler(x).squeeze(1)

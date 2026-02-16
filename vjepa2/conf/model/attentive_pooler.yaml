@@ -8,10 +8,11 @@ attn_drop: 0.3
 num_layers: 2
 num_probe_blocks: 2
 att_pos: rope # none, rope # TODO: Implement relative 2d positional encoding (RoPE) for attention
-num_queries: 16
+num_queries: 3
 depth: 3
 init_std: 0.02
 qkv_bias: True
 complete_block: True
 use_activation_checkpointing: False
 name: attentive_classifier
+concat: True

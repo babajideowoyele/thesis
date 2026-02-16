@@ -1,0 +1,80 @@
+# MVFoul end-to-end training configuration
+# Usage: python app/train_mvfouldl.py run
+
+defaults:
+  - loss: default
+  - _self_
+
+# ── General ──────────────────────────────────────────────────────────────────
+seed: 42
+backend: nccl  # nccl for GPU, gloo for CPU
+output_path: ./outputs/mvfoul_scratch
+validate_every: 1  # Run validation every N epochs
+num_workers: 8
+
+# ── Dataset (MVFoul) ────────────────────────────────────────────────────────
+dataset:
+  name: multiviewdataset  # Registry key
+
+data:
+  path: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
+  fps: 25
+  num_views: 5
+  start_frame: 0
+  end_frame: 125
+  step_size: 3
+
+
+# ── Model ────────────────────────────────────────────────────────────────────
+model:
+  name: mvfoul_scratch
+  backbone: 
+    name: vit_large
+    freeze_backbone: true
+  classifier_action: 
+    name: attentive_classifier
+    num_classes: 8
+  classifier_severity: 
+    name: attentive_classifier
+    num_classes: 4
+
+# ── Training ─────────────────────────────────────────────────────────────────
+training:
+  with_amp: true
+  checkpoint_every: 500
+  log_every_iters: 100
+  resume_from: null
+
+  hyper_params:
+    num_epochs: 30
+    learning_rate: 3e-4
+    weight_decay: 0.05
+    num_warmup_epochs: 3
+    momentum: 0.9
+    train:
+      batch_size: 8
+    val:
+      batch_size: 8
+
+
+  # Loss per head
+  severity:
+    loss_fn:
+      name: two_way_multilabel # cross_entropy
+      label_smoothing: 0.1
+  action:
+    loss_fn:
+      name: two_way_multilabel # cross_entropy
+      label_smoothing: 0.1
+
+# ── ClearML (disabled – replaced by W&B) ────────────────────────────────────
+clearml:
+  enable: false
+
+# ── Weights & Biases ────────────────────────────────────────────────────────
+wandb:
+  enable: true
+  project: "Thesis-Goldenbaum"
+  entity: "konradgoldenbaum-hasso-plattner-institut"
+  run_name: mvfoul_scratch_run
+  log_frequency: 50  # log every N iterations
