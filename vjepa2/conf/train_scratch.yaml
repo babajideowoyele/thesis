@@ -7,12 +7,17 @@ defaults:
   - model/classifier_severity: attentive_pooler
   - _self_
 
+# Prevent Hydra from changing cwd per-process (breaks torchrun + NCCL)
+hydra:
+  job:
+    chdir: false
+
 # ── General ──────────────────────────────────────────────────────────────────
 seed: 42
 backend: nccl  # nccl for GPU, gloo for CPU
 output_path: ./outputs/mvfoul_scratch
 validate_every: 1  # Run validation every N epochs
-num_workers: 8
+num_workers: 14
 
 # ── Dataset (MVFoul) ────────────────────────────────────────────────────────
 dataset:
@@ -32,8 +37,9 @@ model:
   name: mvfoul_scratch
   backbone: 
     name: vit_large_rope
-    freeze: true
+    freeze: false
     num_frames: 125
+    lr: 1e-4
     pretrained_weights_path: /sc/home/konrad.goldenbaum/models/vitl.pt
   classifier_action: 
     num_classes: 8
@@ -44,20 +50,20 @@ model:
 training:
   with_amp: true
   checkpoint_every: 500
-  log_every_iters: 100
+  log_every_iters: 20
   resume_from: null
-
   hyper_params:
     num_epochs: 30
-    learning_rate: 3e-4
+    learning_rate: 1e-2
     weight_decay: 0.05
     num_iters_per_epoch: 1000
     num_warmup_epochs: 3
     momentum: 0.9
     train:
-      batch_size: 8
+      batch_size: 2
+      compound_size: 4 # set to >1 to use gradient accumulation (effective batch size = batch_size * compound_size)
     val:
-      batch_size: 8
+      batch_size: 1
 
 
   # Loss per head
@@ -76,13 +82,13 @@ clearml:
 
 # ── Metrics (evaluation & checkpointing) ────────────────────────────────────
 metrics:
-  primary: BalancedAccuracy   # which metric drives best-model checkpointing
+  primary: Loss   # which metric drives best-model checkpointing
   eval:
-    BalancedAccuracy:
+    SeverityBalancedAccuracy:
       type: balanced_accuracy
       task: severity
       num_classes: 4
-    Accuracy:
+    SeverityAccuracy:
       type: accuracy
       task: severity
     ActionAccuracy:
@@ -98,10 +104,14 @@ metrics:
 
 
 
-# ── Weights & Biases ────────────────────────────────────────────────────────
+# ── Weights & Biases 
 wandb:
   enable: true
   project: "Thesis-Goldenbaum"
   entity: "konradgoldenbaum-hasso-plattner-institut"
   run_name: mvfoul_scratch_run
   log_frequency: 50  # log every N iterations
+
+
+# Debug
+limit_batches: null

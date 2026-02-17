@@ -1,5 +1,17 @@
+import os
+
+# ── Strip partial SLURM env vars ────────────────────────────────────────────
+# sbatch sets SLURM_JOB_ID etc., but NOT SLURM_LOCALID (only srun does).
+# Ignite sees the partial SLURM env and assumes full SLURM distributed mode,
+# then crashes on the missing variables.  Since we use torchrun as the actual
+# launcher, we remove SLURM vars before importing ignite.
+if "RANK" in os.environ:                       # torchrun is the launcher
+    for _k in [k for k in os.environ if k.startswith("SLURM_")]:
+        del os.environ[_k]
+
 import hydra
 import torch
+import torch.distributed as dist
 from omegaconf import DictConfig, OmegaConf
 from app.mvfoul.dataflow import get_dataflow
 from app.mvfoul.model import get_model
@@ -20,9 +32,9 @@ def training(local_rank, config: DictConfig):
     manual_seed(config.seed + rank)
 
     logger = setup_logger(name="MVFoul Training")
-    log_basic_info(logger, config)
 
     if rank == 0:
+        log_basic_info(logger, config)
         setup_rank_zero(logger, config)
 
     use_wandb: bool = config.wandb.enable
@@ -70,9 +82,11 @@ def training(local_rank, config: DictConfig):
 
     def run_validation(engine):
         epoch = trainer.state.epoch
-        state = train_evaluator.run(train_loader)
+        limit = config.get("limit_batches", None)
+        
+        state = train_evaluator.run(train_loader, epoch_length=limit)
         log_metrics(logger, epoch, state.times["COMPLETED"], "train", state.metrics)
-        state = val_evaluator.run(val_loader)
+        state = val_evaluator.run(val_loader, epoch_length=limit)
         log_metrics(logger, epoch, state.times["COMPLETED"], "val", state.metrics)
 
         # ── W&B epoch-level metrics ──────────────────────────────────────────
@@ -81,8 +95,10 @@ def training(local_rank, config: DictConfig):
             val_state = val_evaluator.state
             log_dict = {"epoch": epoch}
             for m_name in metrics:
-                log_dict[f"train/{m_name}"] = train_state.metrics.get(m_name)
-                log_dict[f"val/{m_name}"] = val_state.metrics.get(m_name)
+                tv = train_state.metrics.get(m_name)
+                vv = val_state.metrics.get(m_name)
+                log_dict[f"train/{m_name}"] = tv.item() if isinstance(tv, torch.Tensor) else float(tv)
+                log_dict[f"val/{m_name}"] = vv.item() if isinstance(vv, torch.Tensor) else float(vv)
             wandb.log(log_dict, step=trainer.state.iteration)
 
     trainer.add_event_handler(
@@ -112,7 +128,11 @@ def training(local_rank, config: DictConfig):
     )
 
     try:
-        trainer.run(train_loader, max_epochs=config.training.hyper_params.num_epochs)
+        trainer.run(
+            train_loader, 
+            max_epochs=config.training.hyper_params.num_epochs,
+            epoch_length=config.get("limit_batches", None)
+        )
     except Exception as e:
         logger.exception("")
         raise e
@@ -127,22 +147,20 @@ def training(local_rank, config: DictConfig):
 
 @hydra.main(config_path="../conf", config_name="train_scratch", version_base=None)
 def main(cfg):
-    import os
-    # Remove stale SLURM env vars so idist detects torchrun instead of SLURM
-    for key in list(os.environ):
-        if key.startswith("SLURM_"):
-            del os.environ[key]
+    backend = cfg.get("backend", "nccl")
 
-    backend = cfg.get("backend", "nccl")  # Explicit backend prevents SLURM auto-detection
-    print(f"Using distributed backend: {backend}")
-    print(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
-    
-    # If RANK env var exists, we're already spawned by torchrun—don't use idist.Parallel
     if "RANK" in os.environ:
-        local_rank = int(os.environ.get("LOCAL_RANK", 0))
-        training(local_rank, cfg)
+        # Launched by torchrun: init process group and let ignite discover it.
+        local_rank = int(os.environ["LOCAL_RANK"])
+        torch.cuda.set_device(local_rank)
+        dist.init_process_group(backend)
+        idist.sync()
+        try:
+            training(local_rank, cfg)
+        finally:
+            dist.destroy_process_group()
     else:
-        # Use idist.Parallel to spawn processes
+        # Local / single-GPU: let idist.Parallel handle everything.
         with idist.Parallel(backend=backend) as parallel:
             parallel.run(training, cfg)
 

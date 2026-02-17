@@ -2,9 +2,12 @@ from torch.utils.data import Dataset
 from random import random
 import torch
 import random
+import warnings
 from app.vjepa.transforms import make_transforms
 from src.VARS.data_loader import label2vectormerge, clips2vectormerge
-from torchvision.io.video import read_video
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", UserWarning)
+    from torchvision.io.video import read_video
 from src.utils.dataset_registry import DATASET_REGISTRY
 
 
@@ -88,7 +91,7 @@ class MultiViewDataset(Dataset):
                 prev_views.append(index_view)
 
 
-            video, _, _ = read_video(self.clips[index][index_view], output_format="THWC")
+            video, _, _ = read_video(self.clips[index][index_view], output_format="THWC", pts_unit='sec')
             frames = video[self.start:self.end,:,:,:]
 
             final_frames = None

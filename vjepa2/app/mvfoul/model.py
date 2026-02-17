@@ -36,6 +36,7 @@ class MVFoulModel(torch.nn.Module):
         if num_views > 1:
             action_pred = action_pred.view(b, v, -1).mean(dim=1) if action_pred is not None else None
             offence_severity_pred = offence_severity_pred.view(b, v, -1).mean(dim=1) if offence_severity_pred is not None else None
+        
         return action_pred, offence_severity_pred
     
     def _load_pretrained_weights(self, model_path: str):

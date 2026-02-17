@@ -9,10 +9,10 @@ Hydra config example (inside train_scratch.yaml):
     metrics:
       primary: BalancedAccuracy        # name used for best-model checkpointing
       eval:
-        BalancedAccuracy:
+        SeverityBalancedAccuracy:
           type: balanced_accuracy
           task: severity
-        Accuracy:
+        SeverityAccuracy:
           type: accuracy
           task: severity
         ActionAccuracy:
@@ -37,29 +37,29 @@ from ignite.metrics import Accuracy, Loss, Recall, Metric
 # ---------------------------------------------------------------------------
 
 def _severity_output_transform(output: dict):
-    """Return (preds_class_indices, target_class_indices) for severity head."""
+    """Return (pred_logits, target_indices) for severity head."""
     return (
-        torch.argmax(output["offence_sev_pred"], dim=1),
+        output["offence_sev_pred"],
         torch.argmax(output["offence_sev_target"], dim=1),
     )
 
 
 def _action_output_transform(output: dict):
-    """Return (preds_class_indices, target_class_indices) for action head."""
+    """Return (pred_logits, target_indices) for action head."""
     return (
-        torch.argmax(output["action_pred"], dim=1),
+        output["action_pred"],
         torch.argmax(output["action_target"], dim=1),
     )
 
 
 def _severity_onehot_output_transform(output: dict):
-    """Return (pred_logits, target_one_hot) for severity – needed by Recall."""
-    return output["offence_sev_pred"], output["offence_sev_target"]
+    """Return (pred_logits, target_indices) for severity."""
+    return output["offence_sev_pred"], torch.argmax(output["offence_sev_target"], dim=1)
 
 
 def _action_onehot_output_transform(output: dict):
-    """Return (pred_logits, target_one_hot) for action – needed by Recall."""
-    return output["action_pred"], output["action_target"]
+    """Return (pred_logits, target_indices) for action."""
+    return output["action_pred"], torch.argmax(output["action_target"], dim=1)
 
 
 def _combined_loss_output_transform(output: dict):
@@ -106,14 +106,13 @@ def _build_accuracy(task: str, **kwargs) -> Metric:
 def _build_balanced_accuracy(task: str, num_classes: int = None, **kwargs) -> Metric:
     """
     Macro-averaged recall == balanced accuracy.
-    Ignite's Recall needs (logits, one-hot-targets) and is_multilabel=True
-    when targets are one-hot.
+    For multiclass, Ignite's Recall needs (logits, target_indices) and is_multilabel=False.
     """
     if num_classes is None:
         raise ValueError("balanced_accuracy metric requires 'num_classes' to be set in config (or inferred).")
     return Recall(
         average=True,
-        is_multilabel=True,
+        is_multilabel=False,
         output_transform=_TASK_ONEHOT_OUTPUT_TRANSFORMS[task],
     )
 
@@ -130,7 +129,11 @@ def _build_loss(
             sev_target, act_target = y
             return criterion_severity(sev_pred, sev_target) + criterion_action(act_pred, act_target)
 
-        return Loss(combined_loss_fn, output_transform=_combined_loss_output_transform)
+        return Loss(
+            combined_loss_fn,
+            output_transform=_combined_loss_output_transform,
+            skip_unrolling=True,
+        )
     elif task == "severity":
         return Loss(criterion_severity, output_transform=_severity_loss_output_transform)
     elif task == "action":

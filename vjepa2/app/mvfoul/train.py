@@ -3,7 +3,7 @@ from pathlib import Path
 import ignite
 import ignite.distributed as idist
 from ignite.engine import Engine
-from ignite.handlers import Checkpoint
+from ignite.handlers import Checkpoint, ParamGroupScheduler
 import torch
 from ignite.contrib.engines import common
 from src.utils.loss import get_loss_fn
@@ -14,6 +14,10 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
     device = idist.device()
     criterion_severity, criterion_action = criterion
     use_amp = cfg.training.with_amp
+    compound_size = cfg.training.hyper_params.train.compound_size
+
+    if isinstance(lr_scheduler, list):
+        lr_scheduler = ParamGroupScheduler(lr_scheduler, ["head", "backbone"])
 
     if use_amp:
         scaler = torch.amp.GradScaler("cuda")
@@ -25,22 +29,36 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
         offence_sev_target = offence_sev_target.to(device, non_blocking=True)
         action_target = action_target.to(device, non_blocking=True)
 
-        optimizer.zero_grad()
+        # Determine if this is the first step in accumulation cycle
+        is_accumulating = (engine.state.iteration % compound_size) != 0
+        
+        # Zero gradients at the start of accumulation cycle
+        if not is_accumulating:
+            optimizer.zero_grad()
 
         if use_amp:
             with torch.amp.autocast("cuda"):
                 action_pred, offence_sev_pred = model(clips)
                 loss = criterion_severity(offence_sev_pred, offence_sev_target) + criterion_action(action_pred, action_target)
+                # Scale loss by compound_size to maintain consistent gradient magnitude
+                loss = loss / compound_size
             scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+            # Only step optimizer at the end of accumulation cycle
+            if not is_accumulating:
+                scaler.step(optimizer)
+                scaler.update()
         else:
             action_pred, offence_sev_pred = model(clips)
             loss = criterion_severity(offence_sev_pred, offence_sev_target) + criterion_action(action_pred, action_target)
+            # Scale loss by compound_size to maintain consistent gradient magnitude
+            loss = loss / compound_size
             loss.backward()
-            optimizer.step()
+            # Only step optimizer at the end of accumulation cycle
+            if not is_accumulating:
+                optimizer.step()
 
-        return {"batch loss": loss.item()}
+        # Return the actual loss value (not scaled) for logging
+        return {"batch loss": loss.item() * compound_size}
 
     trainer = Engine(_update)
     trainer.logger = logger
@@ -60,7 +78,7 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
         save_handler=get_save_handler(cfg),
         lr_scheduler=lr_scheduler,
         output_names=["batch loss"] if cfg.training.log_every_iters > 0 else None,
-        with_pbars=False,
+        with_pbars=True,
         clear_cuda_cache=False,
     )
 
@@ -79,8 +97,7 @@ def setup_rank_zero(logger, config):
         f"{config.model.name}_backend-{idist.backend()}-{idist.get_world_size()}_{now}"
     )
     output_path = Path(output_path) / folder_name
-    if not output_path.exists():
-        output_path.mkdir(parents=True)
+    output_path.mkdir(parents=True, exist_ok=True)
     config.output_path = output_path.as_posix()
     logger.info(f"Output path: {config.output_path}")
 
@@ -187,9 +204,19 @@ def get_criterion(cfg):
     return get_loss_fn(cfg.training.severity.loss_fn), get_loss_fn(cfg.training.action.loss_fn)
 
 def get_optimizer(config, model):
+    if config.model.backbone.lr is not None and not config.model.backbone.freeze:
+        param_dict = [
+            {"params": model.backbone.parameters(), "lr": config.model.backbone.lr},
+            {"params": model.classifier_action.parameters(), "lr": config.training.hyper_params.learning_rate},
+            {"params": model.classifier_offence_severity.parameters(), "lr": config.training.hyper_params.learning_rate},
+        ]
+    else:        
+        param_dict = [
+            {"params": model.parameters(), "lr": config.training.hyper_params.learning_rate},
+            ] 
+            
     optimizer = optim.AdamW(
-        model.parameters(),
-        lr=config.training.hyper_params.learning_rate,
+        param_dict,
         betas=(0.9, 0.999),
         weight_decay=config.training.hyper_params.weight_decay,
         eps=1e-8,
@@ -199,13 +226,60 @@ def get_optimizer(config, model):
 
     return optimizer
 
-def get_lr_scheduler(config, optimizer):
-    milestones_values = [
-        (0, 0.0),
-        (config.training.hyper_params.num_iters_per_epoch * config.training.hyper_params.num_warmup_epochs, config.training.hyper_params.learning_rate),
-        (config.training.hyper_params.num_iters_per_epoch * config.training.hyper_params.num_epochs, 0.0),
-    ]
+def get_lr_scheduler_old(config, optimizer):
+    hp = config.training.hyper_params
+    num_iters_per_epoch = hp.num_iters_per_epoch
+    num_warmup_epochs = hp.num_warmup_epochs
+    num_epochs = hp.num_epochs
+    learning_rate = hp.learning_rate
+
+    warmup_iters = int(num_iters_per_epoch * num_warmup_epochs)
+    total_iters = int(num_iters_per_epoch * num_epochs)
+
+    if warmup_iters >= total_iters:
+        milestones_values = [(0, 0.0), (total_iters, learning_rate)]
+    elif warmup_iters == 0:
+        milestones_values = [(0, learning_rate), (total_iters, 0.0)]
+    else:
+        milestones_values = [
+            (0, 0.0),
+            (warmup_iters, learning_rate),
+            (total_iters, 0.0),
+        ]
     lr_scheduler = PiecewiseLinear(
         optimizer, param_name="lr", milestones_values=milestones_values
     )
     return lr_scheduler
+
+def get_lr_scheduler(config, optimizer):
+    hp = config.training.hyper_params
+    num_iters_per_epoch = hp.num_iters_per_epoch
+    num_warmup_epochs = hp.num_warmup_epochs
+    num_epochs = hp.num_epochs
+    head_rate = config.training.hyper_params.learning_rate  # Base for head
+    # Backbone uses lower base LR (e.g., 10x smaller)
+    backbone_lr = config.model.backbone.lr if config.model.backbone.lr is not None else None
+
+    warmup_iters = int(num_iters_per_epoch * num_warmup_epochs)
+    total_iters = int(num_iters_per_epoch * num_epochs)
+
+    def get_milestones(lr):
+        if warmup_iters >= total_iters:
+            return [(0, 0.0), (total_iters, lr)]
+        elif warmup_iters == 0:
+            return [(0, lr), (total_iters, 0.0)]
+        else:
+            return [(0, 0.0), (warmup_iters, lr), (total_iters, 0.0)]
+
+    head_milestones = get_milestones(head_rate)  # Full scale for head (group 0)
+
+    head_scheduler = PiecewiseLinear(
+        optimizer, param_name="lr", milestones_values=head_milestones, param_group_index=0
+    )
+    if backbone_lr is not None:
+        backbone_milestones = get_milestones(backbone_lr)
+        backbone_scheduler = PiecewiseLinear(
+            optimizer, param_name="lr", milestones_values=backbone_milestones, param_group_index=1
+        )
+        return [head_scheduler, backbone_scheduler]  # List for attachment
+    return head_scheduler  # List for attachment
