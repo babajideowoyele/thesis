@@ -19,7 +19,7 @@ class PatchEmbed(nn.Module):
 
     def forward(self, x):
         B, C, H, W = x.shape
-        x = self.proj(x).flatten(2).transpose(1, 2)
+        x = self.proj(x.to(dtype=self.proj.weight.dtype)).flatten(2).transpose(1, 2)
         return x
 
 
@@ -48,5 +48,5 @@ class PatchEmbed3D(nn.Module):
 
     def forward(self, x, **kwargs):
         B, C, T, H, W = x.shape
-        x = self.proj(x).flatten(2).transpose(1, 2)
+        x = self.proj(x.to(dtype=self.proj.weight.dtype)).flatten(2).transpose(1, 2)
         return x

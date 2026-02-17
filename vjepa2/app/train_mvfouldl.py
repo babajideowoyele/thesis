@@ -1,5 +1,5 @@
-import fire
 import hydra
+import torch
 from omegaconf import DictConfig, OmegaConf
 from app.mvfoul.dataflow import get_dataflow
 from app.mvfoul.model import get_model
@@ -9,11 +9,12 @@ from ignite.utils import manual_seed, setup_logger
 from ignite.engine import Events
 from ignite.contrib.engines import common
 from ignite.handlers import Checkpoint, global_step_from_engine
-from ignite.metrics import Accuracy, Loss
 from app.mvfoul.train import log_basic_info, create_trainer, create_evaluator, log_metrics, get_save_handler, setup_rank_zero, get_criterion
+from app.mvfoul.metrics import build_metrics
 import wandb
 
 def training(local_rank, config: DictConfig):
+    print(f"Running training on local rank {local_rank}")
 
     rank = idist.get_rank()
     manual_seed(config.seed + rank)
@@ -35,26 +36,27 @@ def training(local_rank, config: DictConfig):
 
     train_loader, val_loader = get_dataflow(config)
     model = get_model(config)
+    device = idist.device()
+    model = model.to(device)
     optimizer = get_optimizer(config, model)
     criterion = get_criterion(config)
-    config.num_iters_per_epoch = len(train_loader)
+    criterion_severity, criterion_action = criterion
+    config.training.hyper_params.num_iters_per_epoch = len(train_loader)
     lr_scheduler = get_lr_scheduler(config, optimizer)
 
     trainer = create_trainer(
         model, optimizer, criterion, lr_scheduler, train_loader.sampler, config, logger
     )
 
-    metrics = {
-        "Accuracy": Accuracy(),
-        "Loss": Loss(criterion),
-    }
+    # -- build metrics from config --------------------------------------------
+    metrics, primary_metric = build_metrics(config, criterion_severity, criterion_action)
 
     train_evaluator = create_evaluator(model, metrics, config)
     val_evaluator = create_evaluator(model, metrics, config)
 
     # ── W&B training-step logging ────────────────────────────────────────────
     if use_wandb and rank == 0:
-        log_freq = config.wandb.log_frequenc
+        log_freq = config.wandb.log_frequency
 
         @trainer.on(Events.ITERATION_COMPLETED(every=log_freq))
         def log_training_loss(engine):
@@ -77,18 +79,11 @@ def training(local_rank, config: DictConfig):
         if use_wandb and rank == 0:
             train_state = train_evaluator.state
             val_state = val_evaluator.state
-            wandb.log(
-                {
-                    "epoch": epoch,
-                    "train/accuracy": train_state.metrics["Accuracy"],
-                    "train/loss": train_state.metrics["Loss"],
-                    "val/accuracy": val_state.metrics["Accuracy"],
-                    "val/loss": val_state.metrics["Loss"],
-                    "train/bal_accuracy": train_state.metrics.get("BalancedAccuracy", None),
-                    "val/bal_accuracy": val_state.metrics.get("BalancedAccuracy", None),
-                },
-                step=trainer.state.iteration,
-            )
+            log_dict = {"epoch": epoch}
+            for m_name in metrics:
+                log_dict[f"train/{m_name}"] = train_state.metrics.get(m_name)
+                log_dict[f"val/{m_name}"] = val_state.metrics.get(m_name)
+            wandb.log(log_dict, step=trainer.state.iteration)
 
     trainer.add_event_handler(
         Events.EPOCH_COMPLETED(every=config["validate_every"]) | Events.COMPLETED,
@@ -108,8 +103,8 @@ def training(local_rank, config: DictConfig):
         filename_prefix="best",
         n_saved=2,
         global_step_transform=global_step_from_engine(trainer),
-        score_name="val_accuracy",
-        score_function=Checkpoint.get_default_score_fn("Accuracy"),
+        score_name=f"val_{primary_metric}",
+        score_function=Checkpoint.get_default_score_fn(primary_metric),
     )
     val_evaluator.add_event_handler(
         Events.COMPLETED,
@@ -132,11 +127,25 @@ def training(local_rank, config: DictConfig):
 
 @hydra.main(config_path="../conf", config_name="train_scratch", version_base=None)
 def main(cfg):
-    def run(backend=None, **spawn_kwargs):
-        cfg.backend = backend
-        
-        with idist.Parallel(backend=cfg.backend, **spawn_kwargs) as parallel:
-            parallel.run(training, cfg)
+    import os
+    # Remove stale SLURM env vars so idist detects torchrun instead of SLURM
+    for key in list(os.environ):
+        if key.startswith("SLURM_"):
+            del os.environ[key]
+
+    backend = cfg.get("backend", "nccl")  # Explicit backend prevents SLURM auto-detection
+    print(f"Using distributed backend: {backend}")
+    print(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
     
-    fire.Fire({"run": run})
-        
+    # If RANK env var exists, we're already spawned by torchrun—don't use idist.Parallel
+    if "RANK" in os.environ:
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        training(local_rank, cfg)
+    else:
+        # Use idist.Parallel to spawn processes
+        with idist.Parallel(backend=backend) as parallel:
+            parallel.run(training, cfg)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,7 +1,7 @@
 
 import __future__
 import torch
-from mvaggregate import MVAggregate
+from src.VARS.mvaggregate import MVAggregate
 from torchvision.models.video import r3d_18, R3D_18_Weights, MC3_18_Weights, mc3_18
 from torchvision.models.video import r2plus1d_18, R2Plus1D_18_Weights, s3d, S3D_Weights
 from torchvision.models.video import mvit_v2_s, MViT_V2_S_Weights, mvit_v1_b, MViT_V1_B_Weights

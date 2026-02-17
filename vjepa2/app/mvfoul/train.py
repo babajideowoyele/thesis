@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 import ignite
 import ignite.distributed as idist
-from ignite.engine import create_supervised_trainer, create_supervised_evaluator
+from ignite.engine import Engine
 from ignite.handlers import Checkpoint
 import torch
 from ignite.contrib.engines import common
@@ -12,18 +12,37 @@ from ignite.handlers import PiecewiseLinear
 
 def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logger):
     device = idist.device()
+    criterion_severity, criterion_action = criterion
+    use_amp = cfg.training.with_amp
 
-    trainer = create_supervised_trainer(
-        model,
-        optimizer,
-        criterion,
-        device=device,
-        non_blocking=True,
-        output_transform=lambda x, y, y_pred, loss: {"batch loss": loss.item()},
-        amp_mode="amp" if cfg.training.with_amp else None,
-        scaler=cfg.training.with_amp,
-    )
+    if use_amp:
+        scaler = torch.amp.GradScaler("cuda")
 
+    def _update(engine, batch):
+        model.train()
+        offence_sev_target, action_target, clips, _ = batch
+        clips = clips.to(device, non_blocking=True).float()
+        offence_sev_target = offence_sev_target.to(device, non_blocking=True)
+        action_target = action_target.to(device, non_blocking=True)
+
+        optimizer.zero_grad()
+
+        if use_amp:
+            with torch.amp.autocast("cuda"):
+                action_pred, offence_sev_pred = model(clips)
+                loss = criterion_severity(offence_sev_pred, offence_sev_target) + criterion_action(action_pred, action_target)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            action_pred, offence_sev_pred = model(clips)
+            loss = criterion_severity(offence_sev_pred, offence_sev_target) + criterion_action(action_pred, action_target)
+            loss.backward()
+            optimizer.step()
+
+        return {"batch loss": loss.item()}
+
+    trainer = Engine(_update)
     trainer.logger = logger
 
     to_save = {
@@ -32,10 +51,6 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
         "optimizer": optimizer,
         "lr_scheduler": lr_scheduler,
     }
-    metric_names = [
-        "balanced accuracy",
-        "batch_loss"
-    ]
 
     common.setup_common_training_handlers(
         trainer=trainer,
@@ -44,7 +59,7 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
         save_every_iters=cfg.training.checkpoint_every,
         save_handler=get_save_handler(cfg),
         lr_scheduler=lr_scheduler,
-        output_names=metric_names if cfg.training.log_every_iters > 0 else None,
+        output_names=["batch loss"] if cfg.training.log_every_iters > 0 else None,
         with_pbars=False,
         clear_cuda_cache=False,
     )
@@ -58,7 +73,7 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
 def setup_rank_zero(logger, config):
     device = idist.device()
 
-    now = datetime.now().strftime("%Y%m%d-%H%M%S")
+    now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     output_path = config.output_path if config.output_path is not None else "outputs"
     folder_name = (
         f"{config.model.name}_backend-{idist.backend()}-{idist.get_world_size()}_{now}"
@@ -90,12 +105,33 @@ def setup_rank_zero(logger, config):
 
 def create_evaluator(model, metrics, config):
     device = idist.device()
+    use_amp = config.training.with_amp
 
-    amp_mode = "amp" if config.training.with_amp else None
-    evaluator = create_supervised_evaluator(
-        model, metrics=metrics, device=device, non_blocking=True, amp_mode=amp_mode
-    )
-    
+    def _inference(engine, batch):
+        model.eval()
+        with torch.no_grad():
+            offence_sev_target, action_target, clips, _ = batch
+            clips = clips.to(device, non_blocking=True).float()
+            offence_sev_target = offence_sev_target.to(device, non_blocking=True)
+            action_target = action_target.to(device, non_blocking=True)
+
+            if use_amp:
+                with torch.amp.autocast("cuda"):
+                    action_pred, offence_sev_pred = model(clips)
+            else:
+                action_pred, offence_sev_pred = model(clips)
+
+        return {
+            "offence_sev_pred": offence_sev_pred,
+            "action_pred": action_pred,
+            "offence_sev_target": offence_sev_target,
+            "action_target": action_target,
+        }
+
+    evaluator = Engine(_inference)
+    for name, metric in metrics.items():
+        metric.attach(evaluator, name)
+
     return evaluator
 
 def get_save_handler(config):

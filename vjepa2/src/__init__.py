@@ -1,5 +1,6 @@
 from typing import Type
 from src.models import aggregate_prediction, attentive_pooler
+from src.models.vision_transformer import *
 from src.VARS.dataset import get_dataset
 from src.datasets.mvfoul import Mvfoul
 from src.utils.model_registry import MODEL_REGISTRY

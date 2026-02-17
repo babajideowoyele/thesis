@@ -1,0 +1,18 @@
+embedding_dim: 1024  # Will be auto-detected from embeddings
+num_classes: 8      # Will be auto-detected from embeddings
+mlp_ratio: 3.0
+num_heads: 2
+dropout: 0.3
+proj_drop: 0.3
+attn_drop: 0.3
+num_layers: 2
+num_probe_blocks: 2
+att_pos: rope # none, rope # TODO: Implement relative 2d positional encoding (RoPE) for attention
+num_queries: 3
+depth: 3
+init_std: 0.02
+qkv_bias: True
+complete_block: True
+use_activation_checkpointing: False
+name: attentive_classifier
+concat: True

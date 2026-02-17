@@ -3,6 +3,8 @@
 
 defaults:
   - loss: default
+  - model/classifier_action: attentive_pooler
+  - model/classifier_severity: attentive_pooler
   - _self_
 
 # ── General ──────────────────────────────────────────────────────────────────
@@ -29,13 +31,13 @@ data:
 model:
   name: mvfoul_scratch
   backbone: 
-    name: vit_large
-    freeze_backbone: true
+    name: vit_large_rope
+    freeze: true
+    num_frames: 125
+    pretrained_weights_path: /sc/home/konrad.goldenbaum/models/vitl.pt
   classifier_action: 
-    name: attentive_classifier
     num_classes: 8
   classifier_severity: 
-    name: attentive_classifier
     num_classes: 4
 
 # ── Training ─────────────────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ training:
     num_epochs: 30
     learning_rate: 3e-4
     weight_decay: 0.05
+    num_iters_per_epoch: 1000
     num_warmup_epochs: 3
     momentum: 0.9
     train:
@@ -70,6 +73,30 @@ training:
 # ── ClearML (disabled – replaced by W&B) ────────────────────────────────────
 clearml:
   enable: false
+
+# ── Metrics (evaluation & checkpointing) ────────────────────────────────────
+metrics:
+  primary: BalancedAccuracy   # which metric drives best-model checkpointing
+  eval:
+    BalancedAccuracy:
+      type: balanced_accuracy
+      task: severity
+      num_classes: 4
+    Accuracy:
+      type: accuracy
+      task: severity
+    ActionAccuracy:
+      type: accuracy
+      task: action
+    ActionBalancedAccuracy:
+      type: balanced_accuracy
+      task: action
+      num_classes: 8
+    Loss:
+      type: loss
+      task: combined
+
+
 
 # ── Weights & Biases ────────────────────────────────────────────────────────
 wandb:

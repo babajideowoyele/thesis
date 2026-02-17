@@ -8,7 +8,7 @@ def get_dataflow(config):
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=config.train.batch_size,
+        batch_size=config.training.hyper_params.train.batch_size,
         shuffle=True,
         num_workers=config.num_workers,
         pin_memory=True,
@@ -16,7 +16,7 @@ def get_dataflow(config):
 
     val_loader = DataLoader(
         val_dataset,
-        batch_size=config.val.batch_size,
+        batch_size=config.training.hyper_params.val.batch_size,
         shuffle=False,
         num_workers=config.num_workers,
         pin_memory=True,

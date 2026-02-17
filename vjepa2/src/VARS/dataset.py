@@ -2,6 +2,7 @@ from torch.utils.data import Dataset
 from random import random
 import torch
 import random
+from app.vjepa.transforms import make_transforms
 from src.VARS.data_loader import label2vectormerge, clips2vectormerge
 from torchvision.io.video import read_video
 from src.utils.dataset_registry import DATASET_REGISTRY
@@ -49,7 +50,7 @@ class MultiViewDataset(Dataset):
         self.factor = (end - start) / (((end - start) / 25) * fps)
 
         self.length = len(self.clips)
-        print(self.length)
+
 
     def getDistribution(self):
         return self.distribution_offence_severity, self.distribution_action, 
@@ -78,7 +79,7 @@ class MultiViewDataset(Dataset):
             # As we use a batch size > 1 during training, we always randomly select two views even if we have more than two views.
             # As the batch size during validation and testing is 1, we can have 2, 3 or 4 views per action.
             cont = True
-            if self.split == 'Train':
+            if self.split == 'train':
                 while cont:
                     aux = random.randint(0,len(self.clips[index])-1)
                     if aux not in prev_views:
@@ -99,7 +100,7 @@ class MultiViewDataset(Dataset):
                     else:
                         final_frames = torch.cat((final_frames, frames[j,:,:,:].unsqueeze(0)), 0)
 
-            final_frames = final_frames.permute(0, 3, 1, 2)
+            final_frames = final_frames
 
             if self.transform != None:
                 final_frames = self.transform(final_frames)
@@ -127,9 +128,13 @@ class MultiViewDataset(Dataset):
         return self.length
 
 @DATASET_REGISTRY.register("multiviewdataset")
-def get_dataset(cfg, split, transform=None, transform_model=None):
+def get_dataset(cfg, split, transform=None):
     """Helper function to retrieve a dataset class from the registry."""
-    ds = MultiViewDataset(cfg.data.path, cfg.data.start, cfg.data.end, cfg.data.fps, split, cfg.data.num_views, transform=transform, transform_model=transform_model)
+    transform_model = make_transforms(
+        random_horizontal_flip=False,
+        )
+    ds = MultiViewDataset(cfg.data.path, cfg.data.start_frame, cfg.data.end_frame, cfg.data.fps, split, cfg.data.num_views, transform=transform, transform_model=transform_model)
+    return ds
 
 
     
