@@ -25,3 +25,19 @@ class AggregatePrediction(nn.Module):
         x = self.linear1(x)
         x = self.linear2(x)
         return x
+    
+
+class MVHead(nn.Module):
+    """Multi-View Head for separate severity and action predictions"""
+
+    def __init__(
+        self,
+        cfg: DictConfig,
+    ):
+        super().__init__()
+        
+
+    def forward(self, x):
+        severity_pred = self.severity_head(x)
+        action_pred = self.action_head(x)
+        return severity_pred, action_pred

@@ -121,16 +121,15 @@ class AttentiveClassifier(nn.Module):
         self.pooler = AttentivePooler(
             cfg,
         )
-        if cfg.concat:
-            embedding_dim = cfg.embedding_dim * cfg.num_queries
-            self.aggregate_logits = lambda x: x.flatten(1)
-        else:
-            self.aggregate_logits = self.aggregate_logits = nn.AdaptiveAvgPool1d(1)
-            embedding_dim = cfg.embedding_dim
+        self.aggregate_logits = nn.AdaptiveMaxPool1d(1)
+        embedding_dim = cfg.embedding_dim
         self.linear = nn.Linear(embedding_dim, cfg.num_classes, bias=True)
 
-    def forward(self, x):
-        x = self.pooler(x).squeeze(1)
+    def forward(self, x, v: int = 1):
+        x = self.pooler(x)
+        if v > 1:
+            assert x.shape[0] % v == 0, f"Batch size {x.shape[0]} must be divisible by number of views {v}"
+            x = x.view(x.size(0) // v, x.size(1)*v, -1)
         if len(x.shape) == 3:
             x = self.aggregate_logits(x.transpose(2,1))
             if len(x.shape) == 3:

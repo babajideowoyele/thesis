@@ -3,6 +3,8 @@ from src.models import aggregate_prediction, attentive_pooler
 from src.models.vision_transformer import *
 from src.VARS.dataset import get_dataset
 from src.datasets.mvfoul import Mvfoul
+from src.VARS.model import MVNetwork
+from src.VARS.mvaggregate import MVAggregate
 from src.utils.model_registry import MODEL_REGISTRY
 from src.utils.dataset_registry import DATASET_REGISTRY
 

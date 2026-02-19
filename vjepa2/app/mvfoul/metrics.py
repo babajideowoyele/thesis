@@ -29,7 +29,7 @@ Hydra config example (inside train_scratch.yaml):
 from typing import Dict, Tuple, Callable
 import torch
 from omegaconf import DictConfig
-from ignite.metrics import Accuracy, Loss, Recall, Metric
+from ignite.metrics import Accuracy, Loss, Recall, Metric, ConfusionMatrix
 
 
 # ---------------------------------------------------------------------------
@@ -142,10 +142,24 @@ def _build_loss(
         raise ValueError(f"Unknown loss task: {task}")
 
 
+def _build_confusion_matrix(task: str, num_classes: int = None, **kwargs) -> Metric:
+    """
+    Build a confusion matrix for the specified task.
+    The diagonal represents correct predictions, off-diagonal are errors.
+    """
+    if num_classes is None:
+        raise ValueError("confusion_matrix metric requires 'num_classes' to be set in config.")
+    return ConfusionMatrix(
+        num_classes=num_classes,
+        output_transform=_TASK_OUTPUT_TRANSFORMS[task],
+    )
+
+
 _METRIC_BUILDERS = {
     "accuracy": _build_accuracy,
     "balanced_accuracy": _build_balanced_accuracy,
     "loss": _build_loss,
+    "confusion_matrix": _build_confusion_matrix,
 }
 
 

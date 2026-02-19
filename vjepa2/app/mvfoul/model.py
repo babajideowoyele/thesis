@@ -27,15 +27,15 @@ class MVFoulModel(torch.nn.Module):
         
         features = self.backbone(x)  # Shape: (B*V, num_patches, embed_dim)
         
-        # Reshape back to (B, V, num_patches, embed_dim) then pool each view
-            # Average pool across views: (B, V, num_patches, embed_dim) -> (B, num_patches, embed_dim)
-        num_features = (features.shape[1] // self.grid_size*self.grid_size) * self.grid_size*self.grid_size
-        features = features[:, num_features:]
-        action_pred = self.classifier_action(features) if self.classifier_action is not None else None
-        offence_severity_pred = self.classifier_offence_severity(features) if self.classifier_offence_severity is not None else None
-        if num_views > 1:
-            action_pred = action_pred.view(b, v, -1).mean(dim=1) if action_pred is not None else None
-            offence_severity_pred = offence_severity_pred.view(b, v, -1).mean(dim=1) if offence_severity_pred is not None else None
+        # Trim token sequence to a multiple of grid_size² so that the
+        # RoPE positional encoding inside the attentive classifier can
+        # decompose the sequence into (depth, height, width) positions.
+        grid_sq = self.grid_size * self.grid_size          # 16*16 = 256
+        num_keep = (features.shape[1] // grid_sq) * grid_sq
+        features = features[:, :num_keep]
+
+        action_pred = self.classifier_action(features, num_views) if self.classifier_action is not None else None
+        offence_severity_pred = self.classifier_offence_severity(features, num_views) if self.classifier_offence_severity is not None else None
         
         return action_pred, offence_severity_pred
     
@@ -52,6 +52,12 @@ class MVFoulModel(torch.nn.Module):
         print(f"Load message: {msg}")
     
 def get_model(config):
-    model = MVFoulModel(config)
+    if config.model.name == "mvfoul_vjepa":
+        model = MVFoulModel(config)
+    elif config.model.name == "mvnetwork":
+        md = config.model
+        model = get_model_class(md.name)(md.model, agr_type=md.agr_type, return_attention=md.return_attention)
+    else:
+        raise ValueError(f"Unsupported model name: {config.model.name}")
     return model
     

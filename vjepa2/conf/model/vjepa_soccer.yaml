@@ -1,0 +1,17 @@
+defaults:
+  - classifier_action: attentive_pooler
+  - classifier_severity: attentive_pooler
+  - _self_
+
+
+name: mvfoul_vjepa
+backbone: 
+  name: vit_large_rope
+  freeze: false
+  num_frames: 125
+  lr: 1e-4
+  pretrained_weights_path: /sc/home/konrad.goldenbaum/models/vitl.pt
+classifier_action: 
+  num_classes: 8
+classifier_severity: 
+  num_classes: 4

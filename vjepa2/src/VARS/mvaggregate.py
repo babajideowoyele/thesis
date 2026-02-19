@@ -1,10 +1,11 @@
-from utils import batch_tensor, unbatch_tensor
+from src.VARS.utils import batch_tensor, unbatch_tensor
 import torch
 from torch import nn
+from src.utils.model_registry import MODEL_REGISTRY
 
 
 class WeightedAggregate(nn.Module):
-    def __init__(self,  model, feat_dim, lifting_net=nn.Sequential()):
+    def __init__(self, model, feat_dim, lifting_net=nn.Sequential()):
         super().__init__()
         self.model = model
         self.lifting_net = lifting_net
@@ -85,11 +86,12 @@ class ViewAvgAggregate(nn.Module):
         pooled_view = torch.mean(aux, dim=1)
         return pooled_view.squeeze(), aux
 
-
+@MODEL_REGISTRY.register("mvaggregate")
 class MVAggregate(nn.Module):
-    def __init__(self,  model, agr_type="max", feat_dim=400, lifting_net=nn.Sequential()):
+    def __init__(self,  model, agr_type="max", feat_dim=400, lifting_net=nn.Sequential(), return_attention=False):
         super().__init__()
         self.agr_type = agr_type
+        self.return_attention = return_attention
 
         self.inter = nn.Sequential(
             nn.LayerNorm(feat_dim),
@@ -124,5 +126,7 @@ class MVAggregate(nn.Module):
         inter = self.inter(pooled_view)
         pred_action = self.fc_action(inter)
         pred_offence_severity = self.fc_offence(inter)
-
-        return pred_offence_severity, pred_action, attention
+        if self.return_attention:
+            return pred_action, pred_offence_severity, attention
+        else:
+            return pred_action, pred_offence_severity

@@ -3,8 +3,7 @@
 
 defaults:
   - loss: default
-  - model/classifier_action: attentive_pooler
-  - model/classifier_severity: attentive_pooler
+  - model: vjepa_soccer
   - _self_
 
 # Prevent Hydra from changing cwd per-process (breaks torchrun + NCCL)
@@ -25,7 +24,7 @@ dataset:
 
 data:
   path: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
-  fps: 25
+  fps: 10
   num_views: 5
   start_frame: 0
   end_frame: 125
@@ -33,18 +32,7 @@ data:
 
 
 # ── Model ────────────────────────────────────────────────────────────────────
-model:
-  name: mvfoul_scratch
-  backbone: 
-    name: vit_large_rope
-    freeze: false
-    num_frames: 125
-    lr: 1e-4
-    pretrained_weights_path: /sc/home/konrad.goldenbaum/models/vitl.pt
-  classifier_action: 
-    num_classes: 8
-  classifier_severity: 
-    num_classes: 4
+
 
 # ── Training ─────────────────────────────────────────────────────────────────
 training:
@@ -54,7 +42,7 @@ training:
   resume_from: null
   hyper_params:
     num_epochs: 30
-    learning_rate: 1e-2
+    learning_rate: 1e-4  # Reduced from 1e-2 (was too high for fine-tuning)
     weight_decay: 0.05
     num_iters_per_epoch: 1000
     num_warmup_epochs: 3
@@ -65,16 +53,26 @@ training:
     val:
       batch_size: 1
 
+  loss:
+    # for focal:
+    gamma: 2.0
+    alpha: 0.25
+    reduction: sum # mean, sum
+    beta: 0.999
+    
 
   # Loss per head
   severity:
     loss_fn:
-      name: two_way_multilabel # cross_entropy
+      name: focal # cross_entropy two_way_multilabel focal
       label_smoothing: 0.1
   action:
     loss_fn:
-      name: two_way_multilabel # cross_entropy
+      name: focal # cross_entropy two_way_multilabel focal
       label_smoothing: 0.1
+      
+      
+
 
 # ── ClearML (disabled – replaced by W&B) ────────────────────────────────────
 clearml:
@@ -96,6 +94,14 @@ metrics:
       task: action
     ActionBalancedAccuracy:
       type: balanced_accuracy
+      task: action
+      num_classes: 8
+    SeverityConfusionMatrix:
+      type: confusion_matrix
+      task: severity
+      num_classes: 4
+    ActionConfusionMatrix:
+      type: confusion_matrix
       task: action
       num_classes: 8
     Loss:

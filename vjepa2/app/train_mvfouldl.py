@@ -1,13 +1,15 @@
 import os
+import warnings
+
+warnings.filterwarnings("ignore", message="The video decoding and encoding capabilities of torchvision")
 
 # ── Strip partial SLURM env vars ────────────────────────────────────────────
 # sbatch sets SLURM_JOB_ID etc., but NOT SLURM_LOCALID (only srun does).
 # Ignite sees the partial SLURM env and assumes full SLURM distributed mode,
 # then crashes on the missing variables.  Since we use torchrun as the actual
-# launcher, we remove SLURM vars before importing ignite.
-if "RANK" in os.environ:                       # torchrun is the launcher
-    for _k in [k for k in os.environ if k.startswith("SLURM_")]:
-        del os.environ[_k]
+# launcher (or run locally), we always remove SLURM vars before importing ignite.
+for _k in [k for k in os.environ if k.startswith("SLURM_")]:
+    del os.environ[_k]
 
 import hydra
 import torch
@@ -24,6 +26,7 @@ from ignite.handlers import Checkpoint, global_step_from_engine
 from app.mvfoul.train import log_basic_info, create_trainer, create_evaluator, log_metrics, get_save_handler, setup_rank_zero, get_criterion
 from app.mvfoul.metrics import build_metrics
 import wandb
+import numpy as np
 
 def training(local_rank, config: DictConfig):
     print(f"Running training on local rank {local_rank}")
@@ -51,9 +54,9 @@ def training(local_rank, config: DictConfig):
     device = idist.device()
     model = model.to(device)
     optimizer = get_optimizer(config, model)
-    criterion = get_criterion(config)
-    criterion_severity, criterion_action = criterion
     config.training.hyper_params.num_iters_per_epoch = len(train_loader)
+    criterion = get_criterion(config, train_loader.dataset)
+    criterion_severity, criterion_action = criterion
     lr_scheduler = get_lr_scheduler(config, optimizer)
 
     trainer = create_trainer(
@@ -82,11 +85,10 @@ def training(local_rank, config: DictConfig):
 
     def run_validation(engine):
         epoch = trainer.state.epoch
-        limit = config.get("limit_batches", None)
         
-        state = train_evaluator.run(train_loader, epoch_length=limit)
+        state = train_evaluator.run(train_loader)
         log_metrics(logger, epoch, state.times["COMPLETED"], "train", state.metrics)
-        state = val_evaluator.run(val_loader, epoch_length=limit)
+        state = val_evaluator.run(val_loader)
         log_metrics(logger, epoch, state.times["COMPLETED"], "val", state.metrics)
 
         # ── W&B epoch-level metrics ──────────────────────────────────────────
@@ -97,8 +99,31 @@ def training(local_rank, config: DictConfig):
             for m_name in metrics:
                 tv = train_state.metrics.get(m_name)
                 vv = val_state.metrics.get(m_name)
-                log_dict[f"train/{m_name}"] = tv.item() if isinstance(tv, torch.Tensor) else float(tv)
-                log_dict[f"val/{m_name}"] = vv.item() if isinstance(vv, torch.Tensor) else float(vv)
+                
+                # Handle confusion matrices separately - log as wandb heatmap
+                if "ConfusionMatrix" in m_name:
+                    for split, cm_val in [("train", tv), ("val", vv)]:
+                        if cm_val is None:
+                            continue
+                        cm = cm_val.cpu().numpy() if isinstance(cm_val, torch.Tensor) else cm_val
+                        # Confusion matrix table
+                        log_dict[f"{split}/{m_name}"] = wandb.Table(
+                            columns=[f"Pred_{i}" for i in range(cm.shape[1])],
+                            data=cm.tolist()
+                        )
+                        # Actual class distribution (row sums of CM)
+                        class_counts = cm.sum(axis=1)
+                        dist_table = wandb.Table(
+                            columns=["class", "count"],
+                            data=[[i, int(c)] for i, c in enumerate(class_counts)],
+                        )
+                        log_dict[f"{split}/{m_name.replace('ConfusionMatrix', 'Distribution')}"] = (
+                            wandb.plot.bar(dist_table, "class", "count",
+                                           title=f"{split} {m_name.replace('ConfusionMatrix', '')} class distribution")
+                        )
+                else:
+                    log_dict[f"train/{m_name}"] = tv.item() if isinstance(tv, torch.Tensor) else float(tv)
+                    log_dict[f"val/{m_name}"] = vv.item() if isinstance(vv, torch.Tensor) else float(vv)
             wandb.log(log_dict, step=trainer.state.iteration)
 
     trainer.add_event_handler(
@@ -131,7 +156,6 @@ def training(local_rank, config: DictConfig):
         trainer.run(
             train_loader, 
             max_epochs=config.training.hyper_params.num_epochs,
-            epoch_length=config.get("limit_batches", None)
         )
     except Exception as e:
         logger.exception("")
@@ -163,6 +187,8 @@ def main(cfg):
         # Local / single-GPU: let idist.Parallel handle everything.
         with idist.Parallel(backend=backend) as parallel:
             parallel.run(training, cfg)
+
+    exit(0)
 
 
 if __name__ == "__main__":

@@ -29,11 +29,15 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
         offence_sev_target = offence_sev_target.to(device, non_blocking=True)
         action_target = action_target.to(device, non_blocking=True)
 
-        # Determine if this is the first step in accumulation cycle
-        is_accumulating = (engine.state.iteration % compound_size) != 0
-        
-        # Zero gradients at the start of accumulation cycle
-        if not is_accumulating:
+        # Ignite iterations are 1-based. Accumulation window:
+        #   iter 1 → zero_grad + backward (start of cycle)
+        #   iter 2,3 → backward only (accumulate)
+        #   iter 4 → backward + step (end of cycle)
+        is_first_in_cycle = ((engine.state.iteration - 1) % compound_size) == 0
+        is_last_in_cycle = (engine.state.iteration % compound_size) == 0
+
+        # Zero gradients at the START of each accumulation cycle
+        if is_first_in_cycle:
             optimizer.zero_grad()
 
         if use_amp:
@@ -43,8 +47,8 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
                 # Scale loss by compound_size to maintain consistent gradient magnitude
                 loss = loss / compound_size
             scaler.scale(loss).backward()
-            # Only step optimizer at the end of accumulation cycle
-            if not is_accumulating:
+            # Step optimizer at the END of accumulation cycle
+            if is_last_in_cycle:
                 scaler.step(optimizer)
                 scaler.update()
         else:
@@ -53,8 +57,8 @@ def create_trainer(model, optimizer, criterion, lr_scheduler, sampler, cfg, logg
             # Scale loss by compound_size to maintain consistent gradient magnitude
             loss = loss / compound_size
             loss.backward()
-            # Only step optimizer at the end of accumulation cycle
-            if not is_accumulating:
+            # Step optimizer at the END of accumulation cycle
+            if is_last_in_cycle:
                 optimizer.step()
 
         # Return the actual loss value (not scaled) for logging
@@ -138,6 +142,15 @@ def create_evaluator(model, metrics, config):
             else:
                 action_pred, offence_sev_pred = model(clips)
 
+        # Debug shapes
+        if engine.state.iteration == 1:
+            print(f"[DEBUG] Evaluator shapes:")
+            print(f"  clips: {clips.shape}")
+            print(f"  offence_sev_target: {offence_sev_target.shape}")
+            print(f"  action_target: {action_target.shape}")
+            print(f"  offence_sev_pred: {offence_sev_pred.shape}")
+            print(f"  action_pred: {action_pred.shape}")
+
         return {
             "offence_sev_pred": offence_sev_pred,
             "action_pred": action_pred,
@@ -200,8 +213,36 @@ def log_metrics(logger, epoch, elapsed, tag, metrics):
         f"\nEpoch {epoch} - Evaluation time (seconds): {elapsed:.2f} - {tag} metrics:\n {metrics_output}"
     )
 
-def get_criterion(cfg):
-    return get_loss_fn(cfg.training.severity.loss_fn), get_loss_fn(cfg.training.action.loss_fn)
+def get_criterion(cfg, dataset): 
+    if cfg.training.severity.loss_fn.name == "focal":
+        assert hasattr(dataset.dataset, "getDistribution"), "Dataset must implement getDistribution() to use focal loss with class weights"
+        severity_crit = get_loss_fn(cfg.training.severity.loss_fn.name)
+        num_samples = len(dataset.dataset)
+        weights = dataset.dataset.getDistribution()[0]
+        severity_crit = severity_crit(cfg, alpha=get_alpha(weights, num_samples, cfg.training.loss.beta), num_classes=weights.shape[0])
+    else:
+        severity_crit = get_loss_fn(cfg.training.severity.loss_fn)
+    if cfg.training.action.loss_fn.name == "focal":
+        assert hasattr(dataset.dataset, "getDistribution"), "Dataset must implement getDistribution() to use focal loss with class weights"
+        action_crit = get_loss_fn(cfg.training.action.loss_fn.name)
+        distribution = dataset.dataset.getDistribution()[1]
+        num_samples = len(dataset.dataset)
+        action_crit = action_crit(cfg, alpha=get_alpha(distribution, num_samples, cfg.training.loss.beta), num_classes=distribution.shape[0])
+    else:
+        action_crit = get_loss_fn(cfg.training.action.loss_fn)
+    return severity_crit, action_crit
+
+def get_alpha(distribution, num_samples=None, beta=0.999):
+    if num_samples is not None:
+        # Apply beta smoothing to the distribution
+        n_c = distribution*num_samples + 1e-8  # Convert to counts and add small value to avoid zero
+        distribution = (1-beta)/(1-beta**n_c)
+        return distribution 
+    # Inverse of distribution, normalized to sum to 1
+    inv_dist = 1.0 / (distribution + 1e-8)  # Add small value to avoid division by zero
+    alpha = inv_dist / inv_dist.sum()
+    return alpha
+
 
 def get_optimizer(config, model):
     if config.model.backbone.lr is not None and not config.model.backbone.freeze:

@@ -1,0 +1,7 @@
+model: mvit_v2_s
+agr_type: max
+feat_dim: 1024
+return_attention: false
+name: mvnetwork
+backbone:
+  lr: null
