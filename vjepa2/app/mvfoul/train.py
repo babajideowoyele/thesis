@@ -213,20 +213,22 @@ def log_metrics(logger, epoch, elapsed, tag, metrics):
         f"\nEpoch {epoch} - Evaluation time (seconds): {elapsed:.2f} - {tag} metrics:\n {metrics_output}"
     )
 
-def get_criterion(cfg, dataset): 
+def get_criterion(cfg, dataset):    
+    if isinstance(dataset, torch.utils.data.dataset.Subset):
+        dataset = dataset.dataset  # Unwrap Subset to access getDistribution():
     if cfg.training.severity.loss_fn.name == "focal":
-        assert hasattr(dataset.dataset, "getDistribution"), "Dataset must implement getDistribution() to use focal loss with class weights"
+        assert hasattr(dataset, "getDistribution"), "Dataset must implement getDistribution() to use focal loss with class weights"
         severity_crit = get_loss_fn(cfg.training.severity.loss_fn.name)
-        num_samples = len(dataset.dataset)
-        weights = dataset.dataset.getDistribution()[0]
+        num_samples = len(dataset)
+        weights = dataset.getDistribution()[0]
         severity_crit = severity_crit(cfg, alpha=get_alpha(weights, num_samples, cfg.training.loss.beta), num_classes=weights.shape[0])
     else:
         severity_crit = get_loss_fn(cfg.training.severity.loss_fn)
     if cfg.training.action.loss_fn.name == "focal":
-        assert hasattr(dataset.dataset, "getDistribution"), "Dataset must implement getDistribution() to use focal loss with class weights"
+        assert hasattr(dataset, "getDistribution"), "Dataset must implement getDistribution() to use focal loss with class weights"
         action_crit = get_loss_fn(cfg.training.action.loss_fn.name)
-        distribution = dataset.dataset.getDistribution()[1]
-        num_samples = len(dataset.dataset)
+        distribution = dataset.getDistribution()[1]
+        num_samples = len(dataset)
         action_crit = action_crit(cfg, alpha=get_alpha(distribution, num_samples, cfg.training.loss.beta), num_classes=distribution.shape[0])
     else:
         action_crit = get_loss_fn(cfg.training.action.loss_fn)

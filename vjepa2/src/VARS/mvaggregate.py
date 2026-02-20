@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from src.utils.model_registry import MODEL_REGISTRY
 
-
+@MODEL_REGISTRY.register("weightedaggregate")
 class WeightedAggregate(nn.Module):
     def __init__(self, model, feat_dim, lifting_net=nn.Sequential()):
         super().__init__()
@@ -126,6 +126,10 @@ class MVAggregate(nn.Module):
         inter = self.inter(pooled_view)
         pred_action = self.fc_action(inter)
         pred_offence_severity = self.fc_offence(inter)
+        if pred_action.ndim == 1:
+            pred_action = pred_action.unsqueeze(0)
+        if pred_offence_severity.ndim == 1:
+            pred_offence_severity = pred_offence_severity.unsqueeze(0)
         if self.return_attention:
             return pred_action, pred_offence_severity, attention
         else:

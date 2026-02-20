@@ -1,0 +1,130 @@
+import torch
+from tadaconv.models.base.base_blocks import PREAGGREGATE_REGISTRY
+import torch.nn as nn
+
+
+@PREAGGREGATE_REGISTRY.register()
+class TemporalPooling(nn.Module):
+    def __init__(self, cfg):
+        super(TemporalPooling, self).__init__()
+        self.T = cfg.DATA.NUM_INPUT_FRAMES
+        self.F = cfg.DATA.TAKE_NUM_FRAMES
+    
+    def forward(self, x):
+        assert x.dim() == 5, "Input tensor must be 5D (N, T, H, W, C)"
+        assert x.size(1) % self.T == 0, f"Input tensor temporal dimension must divisible by {self.T} but has size {x.size()}"
+
+        N, T, H, W, C = x.shape
+        divide = self.F // T
+        x = x.view(N, self.T // divide, self.F // self.T, H, W, C)
+        x = x.max(dim=2).values
+        assert x.shape == (N, self.T // divide, H, W, C)
+        return x
+
+
+class AttentionBased(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+@PREAGGREGATE_REGISTRY.register()
+class AttentionPooling(AttentionBased):
+    def __init__(self, cfg,):
+        super(AttentionPooling, self).__init__()
+        self.width = cfg.VIDEO.BACKBONE.NUM_FEATURES
+        self.num_heads = cfg.VIDEO.BACKBONE.NUM_HEADS
+        dim_head = self.width // self.num_heads
+        self.scale = dim_head ** -0.5
+        frame_equivalence = 8
+
+        scale = self.width ** -0.5
+
+        input_resolution    = cfg.VIDEO.BACKBONE.INPUT_RES
+        patch_size          = cfg.VIDEO.BACKBONE.PATCH_SIZE
+        self.TEMP = cfg.VIDEO.BACKBONE.PREAGGREGATE.TEMP
+
+        self.patch_number = (input_resolution // patch_size) ** 2
+        self.patch_axis = input_resolution // patch_size
+        self.carry_patches = self.patch_number * frame_equivalence
+
+        self.MLP         = nn.Linear(self.width, self.carry_patches)
+        self.T = cfg.DATA.NUM_INPUT_FRAMES
+        self.F = cfg.DATA.TAKE_NUM_FRAMES * 4 // cfg.VIDEO.BACKBONE.TUBLET_STRIDE
+        self.video_width = cfg.DATA.TAKE_NUM_FRAMES // cfg.VIDEO.BACKBONE.TUBLET_STRIDE
+        self.positional_embedding = nn.Parameter(scale * torch.randn((self.F, self.patch_axis, self.patch_axis, self.width)))
+        self.pad = nn.Parameter(scale * torch.randn((self.F//2, self.patch_axis, self.patch_axis, self.width)))
+
+    def forward(self, x):
+        assert x.dim() == 5, "Input tensor must be 5D (N, T*V, H, W, C)"
+        N, T, H, W, C = x.shape
+        residual = x.mean(dim=1)
+
+        assert C == self.width, f"Input tensor channel dimension must be {self.width} but has size {x.size()}"
+        if T < self.F:
+            new_x = torch.empty((N, self.F, H, W, C), dtype=x.dtype, device=x.device)
+            new_x[:, :self.video_width] = x[:, :self.video_width]
+            for chunk_idx in range(1, 4):
+                start = chunk_idx * self.video_width
+                end = (chunk_idx + 1) * self.video_width
+                
+                # Determine if we should pad or use data (e.g., 50% chance)
+                # Only apply randomness during training
+                source_start = (chunk_idx % (T // self.video_width)) * self.video_width
+                if self.training and (torch.rand(1).item() > 0.5 or source_start==0):
+                    # Use learnable padding (matching chunk dimensions)
+                    source_start = (chunk_idx % (self.pad.size(0) // self.video_width)) * self.video_width
+                    new_x[:, start:end] = self.pad[source_start:source_start + self.video_width].to(x.dtype)
+                else:
+                    # Use available data (cycling through available frames if T < target)
+                    # This acts as data augmentation/repetition
+                    new_x[:, start:end] = x[:, source_start : source_start + self.video_width]
+            x = new_x + self.positional_embedding.to(x.dtype)
+        else:
+            x = x + self.positional_embedding.to(x.dtype)
+            
+        x = x.reshape(N, -1, C)
+        x = torch.softmax(self.MLP(x).transpose(-1, -2)*self.TEMP, dim=2) @ x
+
+        return x.reshape(N, -1, H, W, C) + residual.unsqueeze(1)
+        
+@PREAGGREGATE_REGISTRY.register()
+class TransformerPooling(AttentionBased):
+    def __init__(self, cfg):
+        super(TransformerPooling, self).__init__()
+        self.width = cfg.VIDEO.BACKBONE.NUM_FEATURES
+        self.num_heads = cfg.VIDEO.BACKBONE.NUM_HEADS
+        dim_head = self.width // self.num_heads
+        self.scale = dim_head ** -0.5
+        frame_equivalance = 8
+
+        input_resolution    = cfg.VIDEO.BACKBONE.INPUT_RES
+        patch_size          = cfg.VIDEO.BACKBONE.PATCH_SIZE
+
+        self.patch_number = (input_resolution // patch_size) ** 2
+        self.carry_patches = self.patch_number * frame_equivalance
+
+        self.to_qkv = nn.Linear(self.width, self.width * 3, bias=False)
+        self.to_out = nn.Linear(self.width, self.width)
+
+        self.T = cfg.DATA.NUM_INPUT_FRAMES
+        self.F = cfg.DATA.TAKE_NUM_FRAMES
+
+    def forward(self, x):
+        assert x.dim() == 5, "Input tensor must be 5D (N, T*V, H, W, C)"
+        N, T, H, W, C = x.shape
+        residual = x.mean(dim=1)
+
+        assert C == self.width, f"Input tensor channel dimension must be {self.width} but has size {x.size()}"
+        x = x.reshape(N, -1, C)
+        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: t.reshape(N, -1, self.num_heads, C // self.num_heads).transpose(1, 2), qkv)
+
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        attn = dots.softmax(dim=-1)
+
+        out = torch.matmul(attn, v).transpose(1, 2).reshape(N, -1, C)
+        out = self.to_out(out)
+
+        return out.reshape(N, -1, H, W, C) + residual.unsqueeze(1) 
+        
+
+        

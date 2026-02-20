@@ -24,7 +24,7 @@ dataset:
 
 data:
   path: /sc/home/konrad.goldenbaum/data/SoccerData/mvfouls
-  fps: 10
+  fps: 8
   num_views: 5
   start_frame: 0
   end_frame: 125
@@ -58,7 +58,7 @@ training:
     gamma: 2.0
     alpha: 0.25
     reduction: sum # mean, sum
-    beta: 0.999
+    beta: 0.9999
     
 
   # Loss per head
